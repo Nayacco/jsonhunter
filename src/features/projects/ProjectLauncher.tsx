@@ -19,7 +19,7 @@ export function ProjectLauncher({ onPasteJson, onLoadUrl, onOpenFile }: ProjectL
   const [file, setFile] = useState<File | null>(null)
 
   return (
-    <Section variant="transparent" padding={6}>
+    <Section>
       <VStack gap={4}>
         <Heading level={1}>JSON Hunter</Heading>
         <TextArea

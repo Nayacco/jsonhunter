@@ -22,7 +22,7 @@ function pathLabel(path: JsonPath) {
 
 export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }: SourceViewProps) {
   return (
-    <Section variant="transparent" padding={0}>
+    <Section>
       <VStack gap={2} as="section" aria-label="Source view">
         <HStack gap={2} align="center" justify="between">
           <Heading level={2}>Source</Heading>

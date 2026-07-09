@@ -24,7 +24,7 @@ export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange,
   const viewerRows = getViewerRows(rows)
 
   return (
-    <Section variant="transparent" padding={3} height="100%">
+    <Section>
       <Toolbar
         label="JSON viewer toolbar"
         size="sm"

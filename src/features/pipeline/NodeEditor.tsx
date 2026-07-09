@@ -17,7 +17,7 @@ type NodeEditorProps = {
 
 export function NodeEditor({ language, value, onChange, onRun, onSave, onCancel }: NodeEditorProps) {
   return (
-    <Section variant="transparent" padding={3}>
+    <Section>
       <Suspense fallback={<Text type="supporting">Loading editor...</Text>}>
         <MonacoEditor
           height="180px"

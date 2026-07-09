@@ -22,7 +22,7 @@ function pathLabel(path: JsonPath) {
 
 export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
   return (
-    <Section variant="transparent" padding={0}>
+    <Section>
       <VStack gap={2} as="section" aria-label="Tree view">
         <HStack gap={2} align="center" justify="between">
           <Heading level={2}>Tree</Heading>

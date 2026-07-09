@@ -10,7 +10,7 @@ type ViewSwitcherProps = {
 
 export function ViewSwitcher({ mode, onModeChange }: ViewSwitcherProps) {
   return (
-    <TabList value={mode} onChange={(nextMode) => onModeChange(nextMode as ViewerMode)} size="sm">
+    <TabList value={mode} onChange={(nextMode) => onModeChange(nextMode as ViewerMode)}>
       {modes.map((candidate) => (
         <Tab key={candidate} value={candidate} label={candidate[0].toUpperCase() + candidate.slice(1)} />
       ))}

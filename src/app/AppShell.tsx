@@ -10,26 +10,24 @@ type AppShellProps = {
 
 export function AppShell({ pipeline, viewer, details }: AppShellProps) {
   return (
-    <AstryxAppShell contentPadding={0} height="fill" variant="section">
+    <AstryxAppShell>
       <Layout
-        height="fill"
         content={
           <Layout
-            height="fill"
             header={
               <LayoutHeader role="banner" label="Pipeline" hasDivider>
                 {pipeline}
               </LayoutHeader>
             }
             content={
-              <LayoutContent role="region" label="JSON viewer" isScrollable>
+              <LayoutContent role="region" label="JSON viewer">
                 {viewer}
               </LayoutContent>
             }
           />
         }
         end={
-          <LayoutPanel role="complementary" label="Details" hasDivider isScrollable>
+          <LayoutPanel role="complementary" label="Details" hasDivider>
             {details}
           </LayoutPanel>
         }

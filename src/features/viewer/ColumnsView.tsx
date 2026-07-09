@@ -22,7 +22,7 @@ function pathLabel(path: JsonPath) {
 
 export function ColumnsView({ rows, selectedPath, onSelectPath, onWindowChange }: ColumnsViewProps) {
   return (
-    <Section variant="transparent" padding={0}>
+    <Section>
       <VStack gap={2} as="section" aria-label="Columns view">
         <HStack gap={2} align="center" justify="between">
           <Heading level={2}>Columns</Heading>

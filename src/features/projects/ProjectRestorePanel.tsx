@@ -24,7 +24,7 @@ export function ProjectRestorePanel({
   const [file, setFile] = useState<File | null>(null)
 
   return (
-    <Section variant="transparent" padding={6}>
+    <Section>
       <VStack gap={4}>
         <Heading level={2}>Raw JSON required</Heading>
         <Text type="supporting" display="block">

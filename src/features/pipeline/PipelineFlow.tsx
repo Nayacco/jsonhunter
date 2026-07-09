@@ -19,7 +19,6 @@ export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, 
     <Toolbar
       label="Pipeline"
       size="sm"
-      variant="transparent"
       startContent={
         <HStack gap={2} wrap="wrap" align="center" as="section" aria-label="Pipeline nodes">
           <Text type="label">Pipeline</Text>
@@ -39,7 +38,6 @@ export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, 
                   <Button
                     label="Edit"
                     tooltip={`Edit ${node.label}`}
-                    size="sm"
                     variant="ghost"
                     onClick={() => onEditNode(node.id)}
                   />
@@ -51,8 +49,8 @@ export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, 
       }
       endContent={
         <VStack gap={1}>
-          <Button label="Add JS" size="sm" onClick={() => onAddNode('js')} />
-          <Button label="Add DuckDB" size="sm" onClick={() => onAddNode('duckdb')} />
+          <Button label="Add JS" onClick={() => onAddNode('js')} />
+          <Button label="Add DuckDB" onClick={() => onAddNode('duckdb')} />
         </VStack>
       }
     />

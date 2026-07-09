@@ -14,7 +14,7 @@ type DetailsPreviewProps = {
 
 export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: DetailsPreviewProps) {
   return (
-    <Section variant="transparent" padding={4}>
+    <Section>
       <VStack gap={4} as="section" aria-label="Details preview">
         <VStack gap={1}>
           <Heading level={2}>Details</Heading>
@@ -23,9 +23,9 @@ export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: De
           </Text>
         </VStack>
 
-        <MetadataList title="Selection" label={{ position: 'start', width: 88 }}>
+        <MetadataList title="Selection">
           <MetadataListItem label="Type">
-            <Token label={type} size="sm" color="blue" />
+            <Token label={type} />
           </MetadataListItem>
           <MetadataListItem label="Value">
             <Text type="code" wordBreak="break-word">
@@ -35,21 +35,21 @@ export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: De
           <MetadataListItem label="Source">{sourceNodeLabel}</MetadataListItem>
         </MetadataList>
 
-        <Section variant="transparent" padding={0}>
+        <Section>
           <Heading level={3}>Provenance</Heading>
           <Text type="supporting" display="block">
             Derived from the currently selected pipeline node.
           </Text>
         </Section>
 
-        <Section variant="transparent" padding={0}>
+        <Section>
           <Heading level={3}>Comparison</Heading>
           <Text type="supporting" display="block">
             Diff appears when comparison data is available.
           </Text>
         </Section>
 
-        <Section variant="transparent" padding={0}>
+        <Section>
           <Heading level={3}>Related values</Heading>
           <Text type="supporting" display="block">
             Related paths appear when indexes are available.
