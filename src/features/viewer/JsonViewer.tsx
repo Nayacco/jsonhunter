@@ -1,4 +1,5 @@
 import { Section } from '@astryxdesign/core/Section'
+import { HStack } from '@astryxdesign/core/Stack'
 import { Toolbar } from '@astryxdesign/core/Toolbar'
 import type { JsonPath } from '../../domain/jsonTypes'
 import type { ViewerMode } from '../../domain/viewTypes'
@@ -13,7 +14,6 @@ import { getViewerRows, type ViewerColumn, type ViewerRowsByMode } from './viewe
 type JsonViewerProps = {
   mode: ViewerMode
   selectedPath: JsonPath
-  breadcrumb: string
   rows?: ViewerRowsByMode
   columnView?: ViewerColumn[]
   onModeChange(mode: ViewerMode): void
@@ -25,7 +25,6 @@ type JsonViewerProps = {
 export function JsonViewer({
   mode,
   selectedPath,
-  breadcrumb,
   rows,
   columnView,
   onModeChange,
@@ -48,13 +47,16 @@ export function JsonViewer({
       <Toolbar
         label="JSON viewer toolbar"
         size="sm"
-        startContent={<ViewSwitcher mode={mode} onModeChange={onModeChange} />}
-        endContent={<Breadcrumb value={breadcrumb} />}
+        startContent={
+          <HStack gap={2} align="center" wrap="wrap">
+            <ViewSwitcher mode={mode} onModeChange={onModeChange} />
+            <Breadcrumb selectedPath={selectedPath} onSelectPath={onSelectPath} />
+          </HStack>
+        }
       />
       {mode === 'columns' && (
         <ColumnsView
           columns={columns}
-          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onColumnWindowChange={onColumnWindowChange}
         />
@@ -62,7 +64,6 @@ export function JsonViewer({
       {mode === 'tree' && (
         <TreeView
           rows={viewerRows.tree}
-          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onWindowChange={(window) => onWindowChange?.('tree', window)}
         />
@@ -70,7 +71,6 @@ export function JsonViewer({
       {mode === 'table' && (
         <TableView
           rows={viewerRows.table}
-          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onWindowChange={(window) => onWindowChange?.('table', window)}
         />
@@ -78,7 +78,6 @@ export function JsonViewer({
       {mode === 'source' && (
         <SourceView
           rows={viewerRows.source}
-          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onWindowChange={(window) => onWindowChange?.('source', window)}
         />

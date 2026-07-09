@@ -4,23 +4,17 @@ import { Heading } from '@astryxdesign/core/Heading'
 import { Item } from '@astryxdesign/core/Item'
 import { Section } from '@astryxdesign/core/Section'
 import { HStack, VStack } from '@astryxdesign/core/Stack'
-import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
 import { VirtualRows } from './VirtualRows'
 import { getViewerRow, type ViewerRowWindow } from './viewerRows'
 
 type TreeViewProps = {
   rows: ViewerRowWindow
-  selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
-function pathLabel(path: JsonPath) {
-  return path.length === 0 ? 'root' : path.join('.')
-}
-
-export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
+export function TreeView({ rows, onSelectPath, onWindowChange }: TreeViewProps) {
   return (
     <Section>
       <VStack gap={2} as="section" aria-label="Tree view">
@@ -28,9 +22,6 @@ export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: T
           <Heading level={2}>Tree</Heading>
           <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />
         </HStack>
-        <Text type="supporting" display="block">
-          Selected: {pathLabel(selectedPath)}
-        </Text>
         {rows.totalCount === 0 ? (
           <EmptyState title="No rows" description="This view has no rows for the selected JSON path." isCompact />
         ) : (

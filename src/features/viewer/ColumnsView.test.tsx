@@ -32,7 +32,6 @@ describe('ColumnsView', () => {
   it('places row values in the end slot instead of the description slot', () => {
     renderWithProviders(
       <ColumnsView
-        selectedPath={[]}
         columns={[
           {
             id: 'root',
@@ -60,7 +59,6 @@ describe('ColumnsView', () => {
 
     renderWithProviders(
       <ColumnsView
-        selectedPath={[]}
         columns={[
           {
             id: 'root',

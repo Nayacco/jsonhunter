@@ -732,7 +732,6 @@ export function App() {
             <JsonViewer
               mode={viewerMode}
               selectedPath={selectedPath}
-              breadcrumb={formatPath(['root', ...selectedPath])}
               rows={viewerRows}
               columnView={columnView}
               onModeChange={setViewerMode}
@@ -746,7 +745,6 @@ export function App() {
         <JsonViewer
           mode={viewerMode}
           selectedPath={selectedPath}
-          breadcrumb={formatPath(['root', ...selectedPath])}
           rows={viewerRows}
           columnView={columnView}
           onModeChange={setViewerMode}

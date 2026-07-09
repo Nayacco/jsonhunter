@@ -37,7 +37,6 @@ describe('JsonViewer', () => {
       <JsonViewer
         mode="columns"
         selectedPath={[]}
-        breadcrumb="root"
         onModeChange={(next) => {
           mode = next
         }}
@@ -45,7 +44,7 @@ describe('JsonViewer', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /table/i }))
+    await user.click(screen.getByRole('radio', { name: /table/i }))
     expect(mode).toBe('table')
   })
 
@@ -61,7 +60,6 @@ describe('JsonViewer', () => {
       <JsonViewer
         mode="tree"
         selectedPath={['items', 10]}
-        breadcrumb="root.items[10]"
         rows={{
           columns: { startIndex: 0, totalCount: 1, rows: [{ label: 'Column placeholder', value: '1', path: ['columns', 0] }] },
           tree: {
@@ -87,23 +85,21 @@ describe('JsonViewer', () => {
     expect(screen.getByText('Tree placeholder')).toBeInTheDocument()
     expect(screen.getByText('Tree sibling')).toBeInTheDocument()
     expect(screen.getByText(/Loading row 10/)).toBeInTheDocument()
-    expect(screen.getByText('root.items[10]')).toBeInTheDocument()
-    expect(screen.getByText('Selected: items.10')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/items/10')
+    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
   })
 
-  it('preserves breadcrumb and selected path across mode switches', async () => {
+  it('preserves breadcrumb path across mode switches', async () => {
     const user = userEvent.setup()
 
     function Harness() {
       const [mode, setMode] = useState<'columns' | 'tree' | 'table' | 'source'>('columns')
       const [selectedPath, setSelectedPath] = useState<(string | number)[]>(['items', 2])
-      const breadcrumb = `root.${selectedPath.join('.')}`
 
       return (
         <JsonViewer
           mode={mode}
           selectedPath={selectedPath}
-          breadcrumb={breadcrumb}
           rows={{
             columns: { startIndex: 2, totalCount: 10, rows: [{ label: 'Column row', value: 'A', path: ['items', 2] }] },
             tree: { startIndex: 2, totalCount: 10, rows: [{ label: 'Tree row', value: 'B', path: ['items', 2] }] },
@@ -118,18 +114,35 @@ describe('JsonViewer', () => {
 
     renderWithProviders(<Harness />)
 
-    expect(screen.getByText('root.items.2')).toBeInTheDocument()
-    expect(screen.getByText('Selected: items.2')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/items/2')
+    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /table/i }))
+    await user.click(screen.getByRole('radio', { name: /table/i }))
     expect(screen.getByRole('region', { name: 'Table view' })).toBeInTheDocument()
-    expect(screen.getByText('root.items.2')).toBeInTheDocument()
-    expect(screen.getByText('Selected: items.2')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/items/2')
+    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /source/i }))
+    await user.click(screen.getByRole('radio', { name: /source/i }))
     expect(screen.getByRole('region', { name: 'Source view' })).toBeInTheDocument()
-    expect(screen.getByText('root.items.2')).toBeInTheDocument()
-    expect(screen.getByText('Selected: items.2')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/items/2')
+    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
+  })
+
+  it('lets breadcrumb ancestors reset the selected path from the toolbar', async () => {
+    const user = userEvent.setup()
+    const selectedPaths: (string | number)[][] = []
+
+    renderWithProviders(
+      <JsonViewer
+        mode="columns"
+        selectedPath={['items', 2, 'name']}
+        onModeChange={() => {}}
+        onSelectPath={(path) => selectedPaths.push(path)}
+      />,
+    )
+
+    await user.click(screen.getByRole('link', { name: 'items' }))
+    expect(selectedPaths).toEqual([['items']])
   })
 
   it('renders ancestor and child columns together in columns mode', () => {
@@ -137,7 +150,6 @@ describe('JsonViewer', () => {
       <JsonViewer
         mode="columns"
         selectedPath={['data', 0, 'entities']}
-        breadcrumb="root.data[0].entities"
         columnView={[
           {
             id: 'root',
@@ -177,7 +189,7 @@ describe('JsonViewer', () => {
     expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Index 0 column' })).toBeInTheDocument()
-    expect(screen.getByText('Selected: data.0.entities')).toBeInTheDocument()
+    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
     expect(screen.getAllByText('entities').length).toBeGreaterThan(0)
   })
 
@@ -192,7 +204,6 @@ describe('JsonViewer', () => {
         <JsonViewer
           mode="columns"
           selectedPath={selectedPath}
-          breadcrumb={`root.${selectedPath.join('.')}`}
           columnView={deriveColumnViewFromJson(rawValue, selectedPath)}
           onModeChange={() => {}}
           onSelectPath={setSelectedPath}
@@ -217,7 +228,6 @@ describe('JsonViewer', () => {
       <JsonViewer
         mode="table"
         selectedPath={[]}
-        breadcrumb="root"
         rows={{
           table: {
             startIndex: 0,
@@ -235,7 +245,7 @@ describe('JsonViewer', () => {
     )
 
     expect(screen.getByText('Loaded row 0')).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: /tabs/i })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'View mode' })).toBeInTheDocument()
     expect(screen.getByText('Loaded row 1')).toBeInTheDocument()
     expect(screen.getByText('Loaded row 2')).toBeInTheDocument()
     expect(screen.getByText(/Loading row 4/)).toBeInTheDocument()

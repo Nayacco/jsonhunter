@@ -185,7 +185,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /add js/i }))
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
-    await user.click(screen.getByRole('button', { name: /^table$/i }))
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
     expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
 
     workerRequest.mockImplementationOnce(async (request: any) => ({
@@ -304,7 +304,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /add js/i }))
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
-    await user.click(screen.getByRole('button', { name: /^table$/i }))
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
     expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
     expect(screen.getByText('{items}')).toBeInTheDocument()
     expect(
@@ -358,7 +358,7 @@ describe('App', () => {
 
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /^table$/i }))
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
     expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: /add js/i }))
@@ -411,7 +411,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: /add js/i }))
     await user.click(screen.getByRole('button', { name: /^run$/i }))
-    await user.click(screen.getByRole('button', { name: /^table$/i }))
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
     await screen.findByRole('button', { name: /Grace/ })
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 

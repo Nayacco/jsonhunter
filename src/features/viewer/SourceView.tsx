@@ -11,16 +11,11 @@ import { getViewerRow, type ViewerRowWindow } from './viewerRows'
 
 type SourceViewProps = {
   rows: ViewerRowWindow
-  selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
-function pathLabel(path: JsonPath) {
-  return path.length === 0 ? 'root' : path.join('.')
-}
-
-export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }: SourceViewProps) {
+export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewProps) {
   return (
     <Section>
       <VStack gap={2} as="section" aria-label="Source view">
@@ -28,9 +23,6 @@ export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }:
           <Heading level={2}>Source</Heading>
           <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />
         </HStack>
-        <Text type="supporting" display="block">
-          Selected: {pathLabel(selectedPath)}
-        </Text>
         {rows.totalCount === 0 ? (
           <EmptyState title="No rows" description="This view has no rows for the selected JSON path." isCompact />
         ) : (

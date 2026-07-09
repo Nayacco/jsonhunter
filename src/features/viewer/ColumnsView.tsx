@@ -11,7 +11,6 @@ import { getViewerRow, type ViewerColumn } from './viewerRows'
 
 type ColumnsViewProps = {
   columns: ViewerColumn[]
-  selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
   onColumnWindowChange?(path: JsonPath, window: { startIndex: number; count: number }): void
 }
@@ -24,7 +23,7 @@ function isSamePath(left: JsonPath | undefined, right: JsonPath) {
   return left !== undefined && left.length === right.length && left.every((segment, index) => segment === right[index])
 }
 
-export function ColumnsView({ columns, selectedPath, onSelectPath, onColumnWindowChange }: ColumnsViewProps) {
+export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: ColumnsViewProps) {
   return (
     <Section>
       <VStack gap={2} as="section" aria-label="Columns view">
@@ -32,9 +31,6 @@ export function ColumnsView({ columns, selectedPath, onSelectPath, onColumnWindo
           <Heading level={2}>Columns</Heading>
           <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />
         </HStack>
-        <Text type="supporting" display="block">
-          Selected: {pathLabel(selectedPath)}
-        </Text>
         {columns.length === 0 ? (
           <EmptyState title="No rows" description="This view has no rows for the selected JSON path." isCompact />
         ) : (

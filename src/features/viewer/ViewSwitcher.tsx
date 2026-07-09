@@ -1,4 +1,4 @@
-import { Tab, TabList } from '@astryxdesign/core/TabList'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import type { ViewerMode } from '../../domain/viewTypes'
 
 const modes: ViewerMode[] = ['columns', 'tree', 'table', 'source']
@@ -10,10 +10,10 @@ type ViewSwitcherProps = {
 
 export function ViewSwitcher({ mode, onModeChange }: ViewSwitcherProps) {
   return (
-    <TabList value={mode} onChange={(nextMode) => onModeChange(nextMode as ViewerMode)}>
+    <SegmentedControl value={mode} onChange={(nextMode) => onModeChange(nextMode as ViewerMode)} label="View mode">
       {modes.map((candidate) => (
-        <Tab key={candidate} value={candidate} label={candidate[0].toUpperCase() + candidate.slice(1)} />
+        <SegmentedControlItem key={candidate} value={candidate} label={candidate[0].toUpperCase() + candidate.slice(1)} />
       ))}
-    </TabList>
+    </SegmentedControl>
   )
 }
