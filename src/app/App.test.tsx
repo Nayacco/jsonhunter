@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../test/render'
 import { App } from './App'
 
@@ -17,25 +17,34 @@ vi.mock('@monaco-editor/react', () => ({
 }))
 
 describe('App', () => {
-  it('renders details preview for the selected path', () => {
-    renderWithProviders(<App />)
-    const detailsPreview = screen.getByRole('region', { name: 'Details preview' })
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Details' })).toBeInTheDocument()
-    expect(within(detailsPreview).getByText('root.data[0].id')).toBeInTheDocument()
-    expect(within(detailsPreview).getByText('number')).toBeInTheDocument()
-    expect(within(detailsPreview).getByText('42')).toBeInTheDocument()
-    expect(within(detailsPreview).getByText('Normalize')).toBeInTheDocument()
-  })
-
-  it('updates details when a different viewer row is selected', async () => {
+  it('does not expose an editor save path for raw', async () => {
     const user = userEvent.setup()
     renderWithProviders(<App />)
 
-    await user.click(screen.getByRole('button', { name: /name/i }))
-    const detailsPreview = screen.getByRole('region', { name: 'Details preview' })
+    await user.click(screen.getByRole('button', { name: /raw/i }))
 
-    expect(within(detailsPreview).getByText('root.data[0].name')).toBeInTheDocument()
-    expect(within(detailsPreview).getByText('"Ada"')).toBeInTheDocument()
+    expect(screen.queryByTestId('monaco-editor')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
+  })
+
+  it('marks downstream nodes stale after saving a middle node', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    const editor = await screen.findByTestId('monaco-editor')
+    await user.clear(editor)
+    await user.type(editor, 'export default input => input + 1')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+    expect(screen.getByRole('button', { name: /summarize/i })).toHaveClass('pipelineNode-stale')
+  })
+
+  it('shows a not-connected error when running a processing node', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    await user.click(screen.getByRole('button', { name: /^run$/i }))
+
+    expect(screen.getByText('Execution is not connected yet.')).toBeInTheDocument()
   })
 })

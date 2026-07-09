@@ -20,12 +20,13 @@ export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: De
         <dd>
           <code>{valuePreview}</code>
         </dd>
+        <dt>Source</dt>
+        <dd>{sourceNodeLabel}</dd>
       </dl>
 
       <section className="detailsPreviewSection" aria-label="Provenance">
         <h3>Provenance</h3>
         <p>Derived from the currently selected pipeline node.</p>
-        <div className="detailsPreviewBadge">{sourceNodeLabel}</div>
       </section>
 
       <section className="detailsPreviewSection" aria-label="Comparison">

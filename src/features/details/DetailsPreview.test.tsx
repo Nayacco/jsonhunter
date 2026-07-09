@@ -17,6 +17,8 @@ describe('DetailsPreview', () => {
     expect(screen.getByText('root.data[0].id')).toBeInTheDocument()
     expect(screen.getByText('number')).toBeInTheDocument()
     expect(screen.getByText('42')).toBeInTheDocument()
+    expect(screen.getByText('Source')).toBeInTheDocument()
     expect(screen.getByText('Raw')).toBeInTheDocument()
+    expect(screen.getByText('Derived from the currently selected pipeline node.')).toBeInTheDocument()
   })
 })
