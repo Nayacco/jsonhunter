@@ -48,7 +48,15 @@ export class ProjectRepository {
 
   async saveProject(project: ProjectRecord): Promise<void> {
     const db = await this.dbPromise
-    await db.put('projects', { ...project, updatedAt: Date.now() })
+    const { rawJsonText, ...projectWithoutRawText } = project
+    const shouldPersistRaw = shouldPersistRawText(project.rawSource, rawJsonText ?? '')
+    const persistedProject = {
+      ...projectWithoutRawText,
+      ...(shouldPersistRaw ? { rawJsonText } : {}),
+      updatedAt: Date.now(),
+    }
+
+    await db.put('projects', persistedProject)
   }
 
   async deleteProject(id: string): Promise<void> {
