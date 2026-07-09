@@ -154,6 +154,7 @@ describe('JsonViewer', () => {
     )
 
     expect(screen.getByText('Loaded row 0')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: /tabs/i })).toBeInTheDocument()
     expect(screen.getByText('Loaded row 1')).toBeInTheDocument()
     expect(screen.getByText('Loaded row 2')).toBeInTheDocument()
     expect(screen.getByText(/Loading row 4/)).toBeInTheDocument()

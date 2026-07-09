@@ -1,3 +1,4 @@
+import { Tab, TabList } from '@astryxdesign/core/TabList'
 import type { ViewerMode } from '../../domain/viewTypes'
 
 const modes: ViewerMode[] = ['columns', 'tree', 'table', 'source']
@@ -9,18 +10,10 @@ type ViewSwitcherProps = {
 
 export function ViewSwitcher({ mode, onModeChange }: ViewSwitcherProps) {
   return (
-    <div className="viewSwitcher" role="group" aria-label="View mode">
+    <TabList value={mode} onChange={(nextMode) => onModeChange(nextMode as ViewerMode)} size="sm">
       {modes.map((candidate) => (
-        <button
-          key={candidate}
-          type="button"
-          className="viewSwitcherButton"
-          aria-pressed={candidate === mode}
-          onClick={() => onModeChange(candidate)}
-        >
-          {candidate[0].toUpperCase() + candidate.slice(1)}
-        </button>
+        <Tab key={candidate} value={candidate} label={candidate[0].toUpperCase() + candidate.slice(1)} />
       ))}
-    </div>
+    </TabList>
   )
 }

@@ -1,3 +1,10 @@
+import { Button } from '@astryxdesign/core/Button'
+import { EmptyState } from '@astryxdesign/core/EmptyState'
+import { Heading } from '@astryxdesign/core/Heading'
+import { Item } from '@astryxdesign/core/Item'
+import { Section } from '@astryxdesign/core/Section'
+import { HStack, VStack } from '@astryxdesign/core/Stack'
+import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
 import { VirtualRows } from './VirtualRows'
 import { getViewerRow, type ViewerRowWindow } from './viewerRows'
@@ -15,36 +22,40 @@ function pathLabel(path: JsonPath) {
 
 export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
   return (
-    <section className="jsonModePane" aria-label="Tree view">
-      <div className="jsonModeHeader">
-        <h2>Tree</h2>
-        <button type="button" onClick={() => onSelectPath([])}>
-          Reset path
-        </button>
-      </div>
-      <div className="jsonModeContext">Selected: {pathLabel(selectedPath)}</div>
-      <VirtualRows
-        count={rows.totalCount}
-        onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
-        renderRow={(index) => {
-          const row = getViewerRow(rows, index)
+    <Section variant="transparent" padding={0}>
+      <VStack gap={2} as="section" aria-label="Tree view">
+        <HStack gap={2} align="center" justify="between">
+          <Heading level={2}>Tree</Heading>
+          <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />
+        </HStack>
+        <Text type="supporting" display="block">
+          Selected: {pathLabel(selectedPath)}
+        </Text>
+        {rows.totalCount === 0 ? (
+          <EmptyState title="No rows" description="This view has no rows for the selected JSON path." isCompact />
+        ) : (
+          <VirtualRows
+            count={rows.totalCount}
+            onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
+            renderRow={(index) => {
+              const row = getViewerRow(rows, index)
 
-          if (!row) {
-            return (
-              <div className="jsonModeRow jsonModeRowIndented jsonModeRowPlaceholder">
-                <span>{`Loading row ${index + 1}`}</span>
-              </div>
-            )
-          }
+              if (!row) {
+                return <Item label={`Loading row ${index + 1}`} density="compact" isDisabled />
+              }
 
-          return (
-            <button type="button" className="jsonModeRow jsonModeRowIndented" onClick={() => onSelectPath(row.path)}>
-              <span>{row.label}</span>
-              <span>{row.value ?? `level ${row.path.length}`}</span>
-            </button>
-          )
-        }}
-      />
-    </section>
+              return (
+                <Item
+                  label={row.label}
+                  description={row.value ?? `level ${row.path.length}`}
+                  density="compact"
+                  onClick={() => onSelectPath(row.path)}
+                />
+              )
+            }}
+          />
+        )}
+      </VStack>
+    </Section>
   )
 }

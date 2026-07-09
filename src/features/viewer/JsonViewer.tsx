@@ -1,3 +1,5 @@
+import { Section } from '@astryxdesign/core/Section'
+import { Toolbar } from '@astryxdesign/core/Toolbar'
 import type { JsonPath } from '../../domain/jsonTypes'
 import type { ViewerMode } from '../../domain/viewTypes'
 import { Breadcrumb } from './Breadcrumb'
@@ -22,11 +24,13 @@ export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange,
   const viewerRows = getViewerRows(rows)
 
   return (
-    <section className="jsonViewer" aria-label="JSON viewer">
-      <header className="jsonViewerToolbar">
-        <ViewSwitcher mode={mode} onModeChange={onModeChange} />
-        <Breadcrumb value={breadcrumb} />
-      </header>
+    <Section variant="transparent" padding={3} height="100%">
+      <Toolbar
+        label="JSON viewer toolbar"
+        size="sm"
+        startContent={<ViewSwitcher mode={mode} onModeChange={onModeChange} />}
+        endContent={<Breadcrumb value={breadcrumb} />}
+      />
       {mode === 'columns' && (
         <ColumnsView
           rows={viewerRows.columns}
@@ -59,6 +63,6 @@ export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange,
           onWindowChange={(window) => onWindowChange?.('source', window)}
         />
       )}
-    </section>
+    </Section>
   )
 }

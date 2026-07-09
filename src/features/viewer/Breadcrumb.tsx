@@ -1,12 +1,13 @@
+import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs'
+
 type BreadcrumbProps = {
   value: string
 }
 
 export function Breadcrumb({ value }: BreadcrumbProps) {
   return (
-    <nav className="breadcrumb" aria-label="JSON path">
-      <span className="breadcrumbLabel">Path</span>
-      <span className="breadcrumbValue">{value}</span>
-    </nav>
+    <Breadcrumbs label="JSON path" variant="supporting">
+      <BreadcrumbItem isCurrent>{value}</BreadcrumbItem>
+    </Breadcrumbs>
   )
 }
