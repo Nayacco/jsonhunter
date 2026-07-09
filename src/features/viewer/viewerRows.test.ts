@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveViewerRowsFromJson } from './viewerRows'
+import { deriveColumnViewFromJson, deriveViewerRowsFromJson } from './viewerRows'
 
 describe('deriveViewerRowsFromJson', () => {
   function createWindowedArrayWithGuardedTail(length = 5000) {
@@ -167,6 +167,91 @@ describe('deriveViewerRowsFromJson', () => {
       label: 'root.rows[0].nested',
       path: ['rows', 0, 'nested'],
       value: 'null',
+    })
+  })
+})
+
+describe('deriveColumnViewFromJson', () => {
+  it('derives root column when no path is selected', () => {
+    const columns = deriveColumnViewFromJson({ data: [{ id: 1 }], includes: { users: [] } }, [])
+
+    expect(columns).toHaveLength(1)
+    expect(columns[0]).toMatchObject({
+      title: 'root',
+      path: [],
+      selectedChildPath: undefined,
+    })
+    expect(columns[0].rows.rows.map((row) => row.label)).toEqual(['data', 'includes'])
+  })
+
+  it('derives one column per expandable selected ancestor', () => {
+    const rawValue = {
+      data: [
+        {
+          id: '121',
+          entities: {
+            annotations: [{ normalized_text: 'Twitter' }],
+          },
+        },
+      ],
+    }
+
+    const columns = deriveColumnViewFromJson(rawValue, ['data', 0, 'entities', 'annotations', 0])
+
+    expect(columns.map((column) => column.title)).toEqual([
+      'root',
+      'data',
+      'Index 0',
+      'entities',
+      'annotations',
+      'Index 0',
+    ])
+    expect(columns.map((column) => column.selectedChildPath)).toEqual([
+      ['data'],
+      ['data', 0],
+      ['data', 0, 'entities'],
+      ['data', 0, 'entities', 'annotations'],
+      ['data', 0, 'entities', 'annotations', 0],
+      undefined,
+    ])
+    expect(columns[2].rows.rows.map((row) => row.label)).toContain('entities')
+    expect(columns[4].rows.rows[0]).toMatchObject({
+      label: '0',
+      path: ['data', 0, 'entities', 'annotations', 0],
+    })
+  })
+
+  it('does not add an empty column for a primitive selected leaf', () => {
+    const rawValue = { data: [{ id: '121', text: 'hello' }] }
+
+    const columns = deriveColumnViewFromJson(rawValue, ['data', 0, 'text'])
+
+    expect(columns.map((column) => column.title)).toEqual(['root', 'data', 'Index 0'])
+    expect(columns[2].selectedChildPath).toEqual(['data', 0, 'text'])
+  })
+
+  it('keeps column windows bounded by path', () => {
+    const guarded = new Array(5000)
+    guarded[0] = { name: 'loaded-0' }
+    guarded[8] = { name: 'loaded-8' }
+    Object.defineProperty(guarded, 4999, {
+      configurable: true,
+      enumerable: true,
+      get() {
+        throw new Error('out-of-window entry should not be read')
+      },
+    })
+
+    const columns = deriveColumnViewFromJson(guarded, [8], {
+      root: { startIndex: 8, count: 1 },
+    })
+
+    expect(columns[0].rows.totalCount).toBe(5000)
+    expect(columns[0].rows.startIndex).toBe(8)
+    expect(columns[0].rows.rows).toHaveLength(1)
+    expect(columns[0].rows.rows[0]).toMatchObject({
+      label: '8',
+      path: [8],
     })
   })
 })

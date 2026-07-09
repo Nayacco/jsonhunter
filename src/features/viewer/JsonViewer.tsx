@@ -8,20 +8,40 @@ import { SourceView } from './SourceView'
 import { TableView } from './TableView'
 import { TreeView } from './TreeView'
 import { ViewSwitcher } from './ViewSwitcher'
-import { getViewerRows, type ViewerRowsByMode } from './viewerRows'
+import { getViewerRows, type ViewerColumn, type ViewerRowsByMode } from './viewerRows'
 
 type JsonViewerProps = {
   mode: ViewerMode
   selectedPath: JsonPath
   breadcrumb: string
   rows?: ViewerRowsByMode
+  columnView?: ViewerColumn[]
   onModeChange(mode: ViewerMode): void
   onSelectPath(path: JsonPath): void
   onWindowChange?(mode: ViewerMode, window: { startIndex: number; count: number }): void
+  onColumnWindowChange?(path: JsonPath, window: { startIndex: number; count: number }): void
 }
 
-export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange, onSelectPath, onWindowChange }: JsonViewerProps) {
+export function JsonViewer({
+  mode,
+  selectedPath,
+  breadcrumb,
+  rows,
+  columnView,
+  onModeChange,
+  onSelectPath,
+  onWindowChange,
+  onColumnWindowChange,
+}: JsonViewerProps) {
   const viewerRows = getViewerRows(rows)
+  const columns = columnView ?? [
+    {
+      id: 'root',
+      title: 'root',
+      path: [],
+      rows: viewerRows.columns,
+    },
+  ]
 
   return (
     <Section>
@@ -33,10 +53,10 @@ export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange,
       />
       {mode === 'columns' && (
         <ColumnsView
-          rows={viewerRows.columns}
+          columns={columns}
           selectedPath={selectedPath}
           onSelectPath={onSelectPath}
-          onWindowChange={(window) => onWindowChange?.('columns', window)}
+          onColumnWindowChange={onColumnWindowChange}
         />
       )}
       {mode === 'tree' && (

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { renderWithProviders } from '../../test/render'
 import { JsonViewer } from './JsonViewer'
+import { deriveColumnViewFromJson } from './viewerRows'
 
 type MockVirtualItem = {
   index: number
@@ -129,6 +130,86 @@ describe('JsonViewer', () => {
     expect(screen.getByRole('region', { name: 'Source view' })).toBeInTheDocument()
     expect(screen.getByText('root.items.2')).toBeInTheDocument()
     expect(screen.getByText('Selected: items.2')).toBeInTheDocument()
+  })
+
+  it('renders ancestor and child columns together in columns mode', () => {
+    renderWithProviders(
+      <JsonViewer
+        mode="columns"
+        selectedPath={['data', 0, 'entities']}
+        breadcrumb="root.data[0].entities"
+        columnView={[
+          {
+            id: 'root',
+            title: 'root',
+            path: [],
+            selectedChildPath: ['data'],
+            rows: { startIndex: 0, totalCount: 1, rows: [{ label: 'data', value: '1 item', path: ['data'] }] },
+          },
+          {
+            id: 'data',
+            title: 'data',
+            path: ['data'],
+            selectedChildPath: ['data', 0],
+            rows: { startIndex: 0, totalCount: 1, rows: [{ label: '0', value: '{entities}', path: ['data', 0] }] },
+          },
+          {
+            id: 'data[0]',
+            title: 'Index 0',
+            path: ['data', 0],
+            selectedChildPath: ['data', 0, 'entities'],
+            rows: {
+              startIndex: 0,
+              totalCount: 2,
+              rows: [
+                { label: 'id', value: '"121"', path: ['data', 0, 'id'] },
+                { label: 'entities', value: '1 field', path: ['data', 0, 'entities'] },
+              ],
+            },
+          },
+        ]}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('region', { name: 'Columns view' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Index 0 column' })).toBeInTheDocument()
+    expect(screen.getByText('Selected: data.0.entities')).toBeInTheDocument()
+    expect(screen.getAllByText('entities').length).toBeGreaterThan(0)
+  })
+
+  it('keeps ancestor columns visible while clicking deeper column rows', async () => {
+    const user = userEvent.setup()
+    const rawValue = { data: [{ id: '121', entities: { annotations: [] } }] }
+
+    function Harness() {
+      const [selectedPath, setSelectedPath] = useState<(string | number)[]>([])
+
+      return (
+        <JsonViewer
+          mode="columns"
+          selectedPath={selectedPath}
+          breadcrumb={`root.${selectedPath.join('.')}`}
+          columnView={deriveColumnViewFromJson(rawValue, selectedPath)}
+          onModeChange={() => {}}
+          onSelectPath={setSelectedPath}
+        />
+      )
+    }
+
+    renderWithProviders(<Harness />)
+
+    await user.click(screen.getByRole('button', { name: /data/i }))
+    expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /0/i }))
+    expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Index 0 column' })).toBeInTheDocument()
   })
 
   it('does not render every row when virtual items are unavailable for a large count', () => {

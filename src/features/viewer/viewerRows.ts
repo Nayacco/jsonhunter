@@ -14,6 +14,14 @@ export type ViewerRowWindow = {
   rows: ViewerRow[]
 }
 
+export type ViewerColumn = {
+  id: string
+  title: string
+  path: JsonPath
+  rows: ViewerRowWindow
+  selectedChildPath?: JsonPath
+}
+
 export type ViewerRowsByMode = {
   columns?: ViewerRowWindow
   tree?: ViewerRowWindow
@@ -23,7 +31,7 @@ export type ViewerRowsByMode = {
 
 const DERIVED_WINDOW_SIZE = 8
 
-type ViewerWindowRequest = {
+export type ViewerWindowRequest = {
   startIndex: number
   count: number
 }
@@ -35,6 +43,7 @@ type ChildEntry = {
 }
 
 export type ViewerWindowRequests = Partial<Record<keyof ViewerRowsByMode, ViewerWindowRequest>>
+export type ColumnWindowRequests = Record<string, ViewerWindowRequest | undefined>
 
 function createViewerRowWindow(rows: ViewerRow[], totalCount = rows.length, startIndex = 0): ViewerRowWindow {
   return {
@@ -112,11 +121,58 @@ export function deriveViewerRowsFromJson(
   }
 }
 
+export function deriveColumnViewFromJson(
+  rawValue: JsonValue,
+  selectedPath: JsonPath = [],
+  windows: ColumnWindowRequests = {},
+): ViewerColumn[] {
+  const columns: ViewerColumn[] = []
+  let columnPath: JsonPath = []
+
+  while (true) {
+    const value = columnPath.length === 0 ? rawValue : getAtPath(rawValue, columnPath)
+    if (!isColumnExpandable(value)) break
+
+    const id = getColumnId(columnPath)
+    const selectedChildPath =
+      selectedPath.length > columnPath.length
+        ? appendPath(columnPath, selectedPath[columnPath.length])
+        : undefined
+
+    columns.push({
+      id,
+      title: getColumnTitle(columnPath),
+      path: columnPath,
+      rows: createColumnsWindow(value, columnPath, windows[id]),
+      selectedChildPath,
+    })
+
+    if (!selectedChildPath) break
+    columnPath = selectedChildPath
+  }
+
+  return columns
+}
+
+export function getColumnId(path: JsonPath) {
+  return path.length === 0 ? 'root' : formatPath(path)
+}
+
 function normalizeWindow(window?: ViewerWindowRequest) {
   return {
     startIndex: Math.max(window?.startIndex ?? 0, 0),
     count: Math.max(window?.count ?? DERIVED_WINDOW_SIZE, 0),
   }
+}
+
+function getColumnTitle(path: JsonPath) {
+  if (path.length === 0) return 'root'
+  const segment = path[path.length - 1]
+  return typeof segment === 'number' ? `Index ${segment}` : segment
+}
+
+function isColumnExpandable(value: JsonValue | undefined) {
+  return Array.isArray(value) || (value !== null && typeof value === 'object')
 }
 
 function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {

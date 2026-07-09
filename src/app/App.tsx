@@ -11,7 +11,13 @@ import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ProjectLauncher } from '../features/projects/ProjectLauncher'
 import { ProjectRestorePanel } from '../features/projects/ProjectRestorePanel'
 import { JsonViewer } from '../features/viewer/JsonViewer'
-import { deriveViewerRowsFromJson, type ViewerWindowRequests } from '../features/viewer/viewerRows'
+import {
+  deriveColumnViewFromJson,
+  deriveViewerRowsFromJson,
+  getColumnId,
+  type ColumnWindowRequests,
+  type ViewerWindowRequests,
+} from '../features/viewer/viewerRows'
 import {
   ProjectRepository,
   RAW_WARNING_LIMIT_BYTES,
@@ -200,6 +206,7 @@ export function App() {
   const [editorValue, setEditorValue] = useState('')
   const [details, setDetails] = useState<DetailsState | undefined>()
   const [viewerWindows, setViewerWindows] = useState<ViewerWindowRequests>({})
+  const [columnWindows, setColumnWindows] = useState<ColumnWindowRequests>({})
   const [error, setError] = useState<string | undefined>()
   const [errorNodeId, setErrorNodeId] = useState<string | undefined>()
   const [isHydrating, setIsHydrating] = useState(true)
@@ -298,6 +305,10 @@ export function App() {
   }, [displayedSourceNodeId, selectedPath, viewerMode])
 
   useEffect(() => {
+    setColumnWindows({})
+  }, [displayedSourceNodeId])
+
+  useEffect(() => {
     if (displayedValue === undefined) {
       setDetails(undefined)
       return
@@ -334,6 +345,13 @@ export function App() {
         ? undefined
         : deriveViewerRowsFromJson(displayedValue, selectedPath, viewerWindows),
     [displayedValue, selectedPath, viewerWindows],
+  )
+  const columnView = useMemo(
+    () =>
+      displayedValue === undefined
+        ? undefined
+        : deriveColumnViewFromJson(displayedValue, selectedPath, columnWindows),
+    [columnWindows, displayedValue, selectedPath],
   )
   const detailsPreview = details ?? getPlaceholderDetails(activeNode)
 
@@ -657,6 +675,15 @@ export function App() {
     })
   }
 
+  function handleColumnWindowChange(path: JsonPath, window: { startIndex: number; count: number }) {
+    const key = getColumnId(path)
+    setColumnWindows((current) => {
+      const existing = current[key]
+      if (existing?.startIndex === window.startIndex && existing.count === window.count) return current
+      return { ...current, [key]: window }
+    })
+  }
+
   const pipelinePane = hasProject ? (
     <PipelineFlow
       nodes={displayedPipeline.nodes}
@@ -707,9 +734,11 @@ export function App() {
               selectedPath={selectedPath}
               breadcrumb={formatPath(['root', ...selectedPath])}
               rows={viewerRows}
+              columnView={columnView}
               onModeChange={setViewerMode}
               onSelectPath={setSelectedPath}
               onWindowChange={handleViewerWindowChange}
+              onColumnWindowChange={handleColumnWindowChange}
             />
           )}
         </>
@@ -719,9 +748,11 @@ export function App() {
           selectedPath={selectedPath}
           breadcrumb={formatPath(['root', ...selectedPath])}
           rows={viewerRows}
+          columnView={columnView}
           onModeChange={setViewerMode}
           onSelectPath={setSelectedPath}
           onWindowChange={handleViewerWindowChange}
+          onColumnWindowChange={handleColumnWindowChange}
         />
       ) : (
         restorePane

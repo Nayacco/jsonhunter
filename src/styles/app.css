@@ -18,3 +18,22 @@ body,
 .virtualRow + .virtualRow {
   border-top: var(--border-width) solid var(--color-border);
 }
+
+.json-columnBrowser {
+  overflow-x: auto;
+  background: var(--color-background-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+}
+
+.json-columnPanel {
+  flex: 0 0 calc(var(--spacing-12) * 6);
+  max-width: calc(var(--spacing-12) * 8);
+  border-right: var(--border-width) solid var(--color-border);
+}
+
+.json-columnPanel .virtualScroll {
+  border: 0;
+  border-radius: var(--radius-none);
+  background: transparent;
+}
