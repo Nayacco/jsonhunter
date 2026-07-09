@@ -1,4 +1,6 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand'
+import type { JsonPath } from '../domain/jsonTypes'
+import type { ViewerMode } from '../domain/viewTypes'
 import { createInitialPipeline } from '../pipeline/pipelineModel'
 import type { WorkbenchState } from './storeTypes'
 
@@ -31,3 +33,11 @@ export function createWorkbenchStore(): UseBoundStore<StoreApi<WorkbenchState>> 
 }
 
 export const useWorkbenchStore = createWorkbenchStore()
+
+export function resetWorkbenchViewState() {
+  useWorkbenchStore.setState({ viewerMode: 'columns', selectedPath: [] })
+}
+
+export function restoreWorkbenchViewState(viewerMode: ViewerMode, selectedPath: JsonPath) {
+  useWorkbenchStore.setState({ viewerMode, selectedPath })
+}
