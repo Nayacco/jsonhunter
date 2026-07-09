@@ -52,3 +52,42 @@ test('shows a restore prompt after refreshing an oversized pasted project', asyn
   await expect(page.getByRole('button', { name: /^columns$/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Columns' })).toBeVisible()
 })
+
+test('keeps large pasted json view switching responsive without rendering every row', async ({ page }) => {
+  await page.goto('/')
+
+  const largeJson = JSON.stringify({
+    rows: Array.from({ length: 5000 }, (_, index) => ({
+      id: index,
+      name: `row-${index}`,
+      active: index % 2 === 0,
+    })),
+  })
+
+  await page.getByLabel(/paste json/i).fill(largeJson)
+  await page.getByRole('button', { name: /create from paste/i }).click()
+
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+
+  const viewChecks = [
+    { button: /^columns$/i, heading: 'Columns' },
+    { button: /^tree$/i, heading: 'Tree' },
+    { button: /^table$/i, heading: 'Table' },
+    { button: /^source$/i, heading: 'Source' },
+  ] as const
+
+  for (const view of viewChecks) {
+    await page.getByRole('button', { name: view.button }).click()
+    await expect(page.getByRole('heading', { name: view.heading })).toBeVisible()
+  }
+
+  await page.getByRole('button', { name: /^table$/i }).click()
+  await expect(page.getByRole('heading', { name: 'Table' })).toBeVisible()
+
+  const renderedRowButtons = page
+    .getByRole('region', { name: 'Table view' })
+    .getByRole('button')
+    .filter({ hasText: /row/i })
+  await expect(renderedRowButtons).toHaveCount(8)
+  await expect(page.getByText(/row-4999/i)).toHaveCount(0)
+})
