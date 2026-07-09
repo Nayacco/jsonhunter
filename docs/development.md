@@ -13,8 +13,10 @@ The current workbench flow is:
 ## Viewer and pipeline notes
 
 - The raw node uses the four viewer modes in `src/features/viewer`: Columns, Tree, Table, and Source.
-- Viewer rows are rendered through `VirtualRows`, which limits the fallback DOM footprint instead of rendering an entire large result set at once.
+- Raw viewer rows are derived from the in-memory `rawValue` in `App` and passed into `JsonViewer` as bounded windows.
+- Viewer rows are rendered through `VirtualRows`, which keeps the fallback DOM footprint bounded instead of rendering an entire large result set at once.
 - JS and DuckDB nodes share the Monaco-backed editor surface in `NodeEditor`.
+- Processing-node execution still is not connected; Run shows the current placeholder error state.
 - The details panel summarizes the selected JSON path and keeps provenance anchored to the active pipeline node.
 
 ## Persistence rules
@@ -22,6 +24,7 @@ The current workbench flow is:
 - The IndexedDB database name is `jsonhunter`.
 - Raw JSON from URL sources is never persisted.
 - Raw JSON from paste/file sources is persisted only when the UTF-8 byte size is at or below `10 * 1024 * 1024`.
+- Node outputs are not persisted.
 - When persisted raw JSON is unavailable on refresh, the restore panel prompts the user to paste again, reselect the file, or reload the URL.
 
 ## Verification workflow

@@ -11,6 +11,7 @@ import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ProjectLauncher } from '../features/projects/ProjectLauncher'
 import { ProjectRestorePanel } from '../features/projects/ProjectRestorePanel'
 import { JsonViewer } from '../features/viewer/JsonViewer'
+import { deriveViewerRowsFromJson } from '../features/viewer/viewerRows'
 import { ProjectRepository, getRawSizeBytes } from '../persistence/projectRepository'
 import {
   appendNodeAfterActive,
@@ -182,6 +183,10 @@ export function App() {
   const hasProject = project !== undefined
   const hasLoadedRaw = rawValue !== undefined && project !== undefined
   const isAutoHydratingPersistedRawProject = isHydrating && project?.rawJsonText !== undefined
+  const rawViewerRows = useMemo(
+    () => (rawValue === undefined ? undefined : deriveViewerRowsFromJson(rawValue, selectedPath)),
+    [rawValue, selectedPath],
+  )
 
   function getActiveProject() {
     const state = useWorkbenchStore.getState()
@@ -424,6 +429,7 @@ export function App() {
           mode={viewerMode}
           selectedPath={selectedPath}
           breadcrumb={formatPath(['root', ...selectedPath])}
+          rows={rawViewerRows}
           onModeChange={setViewerMode}
           onSelectPath={setSelectedPath}
         />

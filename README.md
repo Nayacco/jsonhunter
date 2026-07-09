@@ -1,6 +1,6 @@
 # JSON Hunter
 
-JSON Hunter is a frontend JSON pipeline workbench for loading raw JSON from paste, file, or URL and inspecting it through pipeline nodes and multiple viewer modes.
+JSON Hunter is a frontend JSON workbench for loading raw JSON from paste, file, or URL, then inspecting the current raw node and editing placeholder pipeline steps locally.
 
 ## Getting started
 
@@ -37,5 +37,6 @@ Projects are stored in IndexedDB under the local `jsonhunter` database.
 - URL-backed projects persist metadata only and require an explicit reload after refresh.
 - Paste and file projects persist raw JSON only when the UTF-8 payload is 10 MiB or smaller.
 - Pipeline metadata, active node, selected path, and active viewer mode are restored from persistence.
+- Node execution outputs are not persisted yet.
 
 More implementation notes live in [docs/development.md](/D:/github/jsonhunter/docs/development.md).

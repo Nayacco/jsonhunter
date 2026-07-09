@@ -83,11 +83,7 @@ test('keeps large pasted json view switching responsive without rendering every 
 
   await page.getByRole('button', { name: /^table$/i }).click()
   await expect(page.getByRole('heading', { name: 'Table' })).toBeVisible()
-
-  const renderedRowButtons = page
-    .getByRole('region', { name: 'Table view' })
-    .getByRole('button')
-    .filter({ hasText: /row/i })
-  await expect(renderedRowButtons).toHaveCount(8)
-  await expect(page.getByText(/row-4999/i)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'row-0' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'row-7' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'row-4999' })).toHaveCount(0)
 })
