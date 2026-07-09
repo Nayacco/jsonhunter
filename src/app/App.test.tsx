@@ -2,9 +2,10 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProjectRecord } from '../domain/projectTypes'
-import { resetWorkbenchStore } from '../state/useWorkbenchStore'
+import { resetWorkbenchStore, useWorkbenchStore } from '../state/useWorkbenchStore'
+import type { WorkerResponse } from '../workers/workerProtocol'
 import { renderWithProviders } from '../test/render'
-import { App } from './App'
+import { App, requestWorker } from './App'
 
 const { listProjects, saveProject, workerRequest, createWorkerClient, rawSizeBytesOverride } = vi.hoisted(() => ({
   listProjects: vi.fn<() => Promise<ProjectRecord[]>>(async () => []),
@@ -21,6 +22,15 @@ const { listProjects, saveProject, workerRequest, createWorkerClient, rawSizeByt
   })),
   rawSizeBytesOverride: { value: undefined as number | undefined },
 }))
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+
+  return { promise, resolve }
+}
 
 vi.mock('../persistence/projectRepository', () => ({
   ProjectRepository: class {
@@ -201,6 +211,58 @@ describe('App', () => {
         rawJsonText: '{"items":[{"id":1,"name":"Ada"}]}',
       }),
     )
+  })
+
+  it('does not treat execute results as stale when a details request starts later', async () => {
+    const executeDeferred = createDeferred<WorkerResponse>()
+    const workerClient = {
+      request: vi.fn((request: any) => {
+        if (request.type === 'executePipeline') return executeDeferred.promise
+        return Promise.resolve({
+          type: 'detailsResult' as const,
+          jobId: request.jobId,
+          path: request.path,
+          value: [{ id: 1, name: 'Ada' }],
+          summary: {
+            type: 'array' as const,
+            label: 'Array(1)',
+            childCount: 1,
+            preview: '[1]',
+          },
+        })
+      }),
+      terminate: vi.fn(),
+    }
+    const { startJob, finishJob } = useWorkbenchStore.getState()
+
+    const executePromise = requestWorker(workerClient, startJob, finishJob, {
+      type: 'executePipeline',
+      jobId: 'job-execute',
+      nodes: [{ id: 'raw', type: 'raw', label: 'Raw' }],
+    })
+    const detailsPromise = requestWorker(workerClient, startJob, finishJob, {
+      type: 'getDetails',
+      jobId: 'job-details',
+      path: ['items'],
+    })
+
+    await expect(detailsPromise).resolves.toMatchObject({
+      type: 'detailsResult',
+      jobId: 'job-details',
+    })
+
+    executeDeferred.resolve({
+      type: 'executePipelineResult',
+      jobId: 'job-execute',
+      activeNodeId: 'raw',
+      summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{items}' },
+      output: { items: [{ id: 1, name: 'Grace' }] },
+    })
+
+    await expect(executePromise).resolves.toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'job-execute',
+    })
   })
 
   it('keeps added processing nodes as drafts until save', async () => {

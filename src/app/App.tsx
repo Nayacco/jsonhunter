@@ -25,6 +25,7 @@ import {
   type PipelineState,
 } from '../pipeline/pipelineModel'
 import { resetWorkbenchViewState, useWorkbenchStore } from '../state/useWorkbenchStore'
+import type { WorkbenchJobKind } from '../state/storeTypes'
 import { createWorkerClient, type WorkerClient } from '../workers/workerClient'
 import type { WorkerRequest, WorkerResponse } from '../workers/workerProtocol'
 import { AppShell } from './AppShell'
@@ -748,21 +749,35 @@ export function App() {
   )
 }
 
-async function requestWorker(
+export async function requestWorker(
   workerClient: WorkerClient,
-  startJob: (jobId: string) => void,
-  finishJob: (jobId: string) => void,
+  startJob: (jobId: string, kind?: WorkbenchJobKind) => void,
+  finishJob: (jobId: string, kind?: WorkbenchJobKind) => void,
   request: WorkerRequest,
 ): Promise<WorkerResponse | undefined> {
-  startJob(request.jobId)
+  const kind = getWorkerJobKind(request)
+  startJob(request.jobId, kind)
   try {
     const response = await workerClient.request(request)
-    if (useWorkbenchStore.getState().activeJobId !== request.jobId) return undefined
+    if (getActiveJobIdForRequest(request) !== request.jobId) return undefined
     return response
   } catch (error) {
     if (isSupersededWorkerError(error)) return undefined
     throw error
   } finally {
-    finishJob(request.jobId)
+    finishJob(request.jobId, kind)
   }
+}
+
+function getWorkerJobKind(request: WorkerRequest): WorkbenchJobKind {
+  return isReadOnlyWorkerRequest(request) ? 'read-only' : 'mutation'
+}
+
+function getActiveJobIdForRequest(request: WorkerRequest): string | undefined {
+  const state = useWorkbenchStore.getState()
+  return isReadOnlyWorkerRequest(request) ? state.activeReadOnlyJobId : state.activeJobId
+}
+
+function isReadOnlyWorkerRequest(request: WorkerRequest): boolean {
+  return request.type === 'getDetails' || request.type === 'getViewWindow'
 }

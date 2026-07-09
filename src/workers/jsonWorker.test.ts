@@ -91,4 +91,76 @@ describe('jsonWorker latest-only handling', () => {
 
     expect(responses).toEqual([createParseResult('job-2')])
   })
+
+  it('keeps a pending mutation result when a newer read-only request arrives', async () => {
+    const responses: WorkerResponse[] = []
+    const execute = createDeferred<WorkerResponse>()
+    const details = createDeferred<WorkerResponse>()
+
+    const handler = createLatestOnlyMessageHandler(
+      {
+        handle(request: WorkerRequest) {
+          if (request.type === 'executePipeline') return execute.promise
+          return details.promise
+        },
+      },
+      (response) => {
+        responses.push(response)
+      },
+    )
+
+    void handler(
+      createMessageEvent({
+        type: 'executePipeline',
+        jobId: 'job-execute',
+        nodes: [{ id: 'raw', type: 'raw', label: 'Raw' }],
+      }),
+    )
+    void handler(createMessageEvent({ type: 'getDetails', jobId: 'job-details', path: ['items'] }))
+
+    details.resolve({
+      type: 'detailsResult',
+      jobId: 'job-details',
+      path: ['items'],
+      value: [{ id: 1 }],
+      summary: {
+        type: 'array',
+        label: 'Array(1)',
+        childCount: 1,
+        preview: '[1]',
+      },
+    })
+    await Promise.resolve()
+
+    execute.resolve({
+      type: 'executePipelineResult',
+      jobId: 'job-execute',
+      activeNodeId: 'raw',
+      summary: createObjectSummary(),
+      output: { count: 1 },
+    })
+    await Promise.resolve()
+
+    expect(responses).toEqual([
+      {
+        type: 'detailsResult',
+        jobId: 'job-details',
+        path: ['items'],
+        value: [{ id: 1 }],
+        summary: {
+          type: 'array',
+          label: 'Array(1)',
+          childCount: 1,
+          preview: '[1]',
+        },
+      },
+      {
+        type: 'executePipelineResult',
+        jobId: 'job-execute',
+        activeNodeId: 'raw',
+        summary: createObjectSummary(),
+        output: { count: 1 },
+      },
+    ])
+  })
 })

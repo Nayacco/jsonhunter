@@ -4,7 +4,7 @@ import type { ProjectRecord, RawSource } from '../domain/projectTypes'
 import type { ViewerMode } from '../domain/viewTypes'
 import { ProjectRepository, shouldPersistRawText } from '../persistence/projectRepository'
 import { createInitialPipeline, selectActiveNode } from '../pipeline/pipelineModel'
-import type { WorkbenchState } from './storeTypes'
+import type { WorkbenchJobKind, WorkbenchState } from './storeTypes'
 
 type ProjectRepositoryLike = Pick<ProjectRepository, 'listProjects' | 'saveProject' | 'getProject' | 'deleteProject'>
 
@@ -34,6 +34,10 @@ export function createWorkbenchStore(
     return cachedRepository
   }
 
+  function getJobStateKey(kind: WorkbenchJobKind) {
+    return kind === 'read-only' ? 'activeReadOnlyJobId' : 'activeJobId'
+  }
+
   return create<WorkbenchState>((set, get) => ({
     projects: [],
     activeProjectId: undefined,
@@ -43,13 +47,15 @@ export function createWorkbenchStore(
     viewerMode: 'columns',
     selectedPath: [],
     activeJobId: undefined,
+    activeReadOnlyJobId: undefined,
     error: undefined,
-    startJob(jobId) {
-      set({ activeJobId: jobId, error: undefined })
+    startJob(jobId, kind = 'mutation') {
+      set({ [getJobStateKey(kind)]: jobId, error: undefined })
     },
-    finishJob(jobId) {
-      if (get().activeJobId !== jobId) return
-      set({ activeJobId: undefined })
+    finishJob(jobId, kind = 'mutation') {
+      const stateKey = getJobStateKey(kind)
+      if (get()[stateKey] !== jobId) return
+      set({ [stateKey]: undefined })
     },
     async createProjectFromRaw(name: string, source: RawSource, rawJsonText: string) {
       const now = Date.now()
@@ -146,6 +152,7 @@ export function resetWorkbenchStore() {
     viewerMode: 'columns',
     selectedPath: [],
     activeJobId: undefined,
+    activeReadOnlyJobId: undefined,
     error: undefined,
   })
 }

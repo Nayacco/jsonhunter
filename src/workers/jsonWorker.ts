@@ -7,18 +7,32 @@ export function createLatestOnlyMessageHandler(
   workerRuntime: Pick<JsonWorkerRuntime, 'handle'>,
   postMessage: (response: WorkerResponse) => void,
 ): (event: MessageEvent<WorkerRequest>) => Promise<void> {
-  let latestJobId = ''
+  let latestMutationJobId = ''
+  let latestReadOnlyJobId = ''
+
+  const getLatestJobId = (request: WorkerRequest) =>
+    isReadOnlyRequest(request) ? latestReadOnlyJobId : latestMutationJobId
+
+  const setLatestJobId = (request: WorkerRequest) => {
+    if (isReadOnlyRequest(request)) {
+      latestReadOnlyJobId = request.jobId
+      return
+    }
+
+    latestMutationJobId = request.jobId
+  }
 
   return async (event: MessageEvent<WorkerRequest>) => {
     const request = event.data
-    latestJobId = request.jobId
+    setLatestJobId(request)
+    const isLatestRequest = () => request.jobId === getLatestJobId(request)
 
     try {
-      const response = await workerRuntime.handle(request, { isCurrent: (jobId) => jobId === latestJobId })
-      if (request.jobId !== latestJobId) return
+      const response = await workerRuntime.handle(request, { isCurrent: (jobId) => jobId === getLatestJobId(request) })
+      if (!isLatestRequest()) return
       postMessage(response)
     } catch (error) {
-      if (request.jobId !== latestJobId) return
+      if (!isLatestRequest()) return
       postMessage({
         type: 'workerError',
         jobId: request.jobId,
@@ -31,4 +45,8 @@ export function createLatestOnlyMessageHandler(
 
 if (typeof self !== 'undefined') {
   self.addEventListener('message', createLatestOnlyMessageHandler(runtime, (response) => self.postMessage(response)))
+}
+
+function isReadOnlyRequest(request: WorkerRequest): boolean {
+  return request.type === 'getDetails' || request.type === 'getViewWindow'
 }
