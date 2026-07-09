@@ -11,6 +11,10 @@
 - `ProjectRestorePanel` is presentational only and matches the callback-prop shape from the brief.
 - I kept the App wiring limited to the brief: launcher in the viewer pane, placeholder pipeline/details content, no store or persistence wiring.
 - I added a slightly more polished workbench visual treatment than the bare example CSS while staying within the requested layout.
+- Post-review fixes:
+  - Updated `src/styles/app.css` to make the workbench shell responsive: desktop remains two columns, while mobile (`<=800px`) stacks left and right sections vertically and removes the fixed combined 780px min width.
+  - Removed the body `radial-gradient` orb/bokeh/background glow treatment and replaced it with a flat dark background for restrained styling.
+  - Kept the left pane as a vertical two-row panel and switched pane overflow to `auto` to avoid clipping and control overlap on narrow viewports.
 
 ## Verification
 - `npm test -- src/features/projects/ProjectLauncher.test.tsx`

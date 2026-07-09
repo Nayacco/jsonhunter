@@ -11,9 +11,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(77, 126, 255, 0.15), transparent 34%),
-    linear-gradient(180deg, #0b1020 0%, #090d18 100%);
+  background: #090d18;
 }
 
 button,
@@ -26,8 +24,9 @@ select {
 .workbenchShell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(420px, 48vw) minmax(360px, 1fr);
-  overflow: hidden;
+  grid-template-columns: minmax(0, 56vw) minmax(0, 1fr);
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .leftPane {
@@ -42,6 +41,7 @@ select {
 .detailsPane {
   min-width: 0;
   min-height: 0;
+  overflow: auto;
 }
 
 .pipelinePane {
@@ -50,7 +50,20 @@ select {
 
 .viewerPane,
 .detailsPane {
-  overflow: hidden;
+  overflow: auto;
+}
+
+@media (max-width: 800px) {
+  .workbenchShell {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 60vh) minmax(0, 1fr);
+  }
+
+  .leftPane {
+    border-right: none;
+    border-bottom: 1px solid rgba(106, 127, 158, 0.28);
+    min-height: 0;
+  }
 }
 
 .launcher,
