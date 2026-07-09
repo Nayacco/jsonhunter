@@ -1,11 +1,20 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProjectRecord } from '../domain/projectTypes'
+import { resetWorkbenchStore } from '../state/useWorkbenchStore'
 import { renderWithProviders } from '../test/render'
 import { App } from './App'
 
-const listProjects = vi.fn(async () => [])
-const saveProject = vi.fn(async () => {})
+const { listProjects, saveProject, workerRequest } = vi.hoisted(() => ({
+  listProjects: vi.fn<() => Promise<ProjectRecord[]>>(async () => []),
+  saveProject: vi.fn(async () => {}),
+  workerRequest: vi.fn(async () => ({
+    type: 'parseRawResult',
+    jobId: 'job',
+    summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{ok}' },
+  })),
+}))
 
 vi.mock('../persistence/projectRepository', () => ({
   ProjectRepository: class {
@@ -13,10 +22,18 @@ vi.mock('../persistence/projectRepository', () => ({
     saveProject = saveProject
   },
   getRawSizeBytes: (rawJsonText: string) => new TextEncoder().encode(rawJsonText).byteLength,
+  shouldPersistRawText: (source: { type: string }, rawJsonText: string) =>
+    source.type !== 'url' && new TextEncoder().encode(rawJsonText).byteLength <= 10 * 1024 * 1024,
   sanitizeProjectForPersistence: (project: any) => {
     const rawJsonText = project.rawJsonText as string | undefined
     const size = new TextEncoder().encode(rawJsonText ?? '').byteLength
     return size <= 10 * 1024 * 1024 ? project : { ...project, rawJsonText: undefined }
+  },
+}))
+
+vi.mock('../workers/workerRuntime', () => ({
+  JsonWorkerRuntime: class {
+    handle = workerRequest
   },
 }))
 
@@ -33,18 +50,32 @@ vi.mock('@monaco-editor/react', () => ({
 }))
 
 describe('App', () => {
-  async function createPasteProject(user: ReturnType<typeof userEvent.setup>) {
+  beforeEach(() => {
+    listProjects.mockReset()
+    listProjects.mockImplementation(async () => [])
+    saveProject.mockReset()
+    workerRequest.mockClear()
+    vi.restoreAllMocks()
     window.localStorage.clear()
+    resetWorkbenchStore()
+  })
+
+  afterEach(() => {
+    window.localStorage.clear()
+    resetWorkbenchStore()
+  })
+
+  async function createPasteProject(user: ReturnType<typeof userEvent.setup>) {
     renderWithProviders(<App />)
 
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":1,"name":"Ada"}]}' },
     })
     await user.click(screen.getByRole('button', { name: /create from paste/i }))
+    await screen.findByRole('button', { name: /raw/i })
   }
 
   async function createPasteProjectFromText(user: ReturnType<typeof userEvent.setup>, text: string) {
-    window.localStorage.clear()
     renderWithProviders(<App />)
 
     fireEvent.change(screen.getByLabelText(/paste json/i), {
@@ -99,9 +130,56 @@ describe('App', () => {
     await createPasteProjectFromText(user, oversizedRawJson)
 
     await waitFor(() => {
-      const storedProject = window.localStorage.getItem('jsonhunter.active-project')
-      expect(storedProject).not.toBeNull()
-      expect(JSON.parse(storedProject ?? '{}').rawJsonText).toBeUndefined()
+      expect(saveProject).toHaveBeenCalled()
+      const savedProject = (saveProject as any).mock.calls[0]?.[0] as { rawJsonText?: string } | undefined
+      expect(savedProject?.rawJsonText).toBeUndefined()
     })
   })
+
+  it('shows a reload prompt for a restored URL project without raw text', async () => {
+    listProjects.mockImplementation(async () => [makeUrlProject()])
+
+    renderWithProviders(<App />)
+
+    expect(await screen.findByRole('heading', { name: /raw json required/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reload from url/i })).toBeInTheDocument()
+  })
+
+  it('reloads a restored URL project through the worker client', async () => {
+    listProjects.mockImplementation(async () => [makeUrlProject()])
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{"ok":true}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    renderWithProviders(<App />)
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: /reload from url/i }))
+
+    await waitFor(() => {
+      expect(workerRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'parseRaw',
+          rawJsonText: '{"ok":true}',
+        }),
+      )
+    })
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+  })
 })
+
+function makeUrlProject(): ProjectRecord {
+  return {
+    id: 'project-url',
+    name: 'Remote JSON',
+    createdAt: 1,
+    updatedAt: 2,
+    rawSource: { type: 'url', url: 'https://example.com/data.json' },
+    pipeline: [{ id: 'raw', type: 'raw', label: 'Raw' }],
+    activeNodeId: 'raw',
+    viewerMode: 'columns',
+    selectedPath: [],
+  }
+}

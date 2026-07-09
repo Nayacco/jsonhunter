@@ -1,6 +1,6 @@
 import type { JsonPath } from '../domain/jsonTypes'
 import type { PipelineNode, PipelineNodeStatus } from '../domain/pipelineTypes'
-import type { ProjectRecord } from '../domain/projectTypes'
+import type { ProjectRecord, RawSource } from '../domain/projectTypes'
 import type { ViewerMode } from '../domain/viewTypes'
 
 export type WorkbenchState = {
@@ -15,6 +15,8 @@ export type WorkbenchState = {
   error?: string
   startJob(jobId: string): void
   finishJob(jobId: string): void
+  createProjectFromRaw(name: string, source: RawSource, rawJsonText: string): Promise<void>
+  restoreProjects(): Promise<void>
   setViewerMode(mode: ViewerMode): void
   setSelectedPath(path: JsonPath): void
 }

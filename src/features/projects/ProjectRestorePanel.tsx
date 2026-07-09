@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 type ProjectRestorePanelProps = {
   sourceLabel: string
   onReloadUrl?: () => void
@@ -11,6 +13,8 @@ export function ProjectRestorePanel({
   onReselectFile,
   onPasteAgain,
 }: ProjectRestorePanelProps) {
+  const [pasteText, setPasteText] = useState('')
+
   return (
     <section className="restorePanel">
       <h2>Raw JSON required</h2>
@@ -34,9 +38,15 @@ export function ProjectRestorePanel({
         </label>
       )}
       {onPasteAgain && (
-        <button type="button" onClick={() => onPasteAgain('')}>
-          Paste again
-        </button>
+        <>
+          <label className="field">
+            <span>Paste JSON again</span>
+            <textarea value={pasteText} onChange={(event) => setPasteText(event.currentTarget.value)} />
+          </label>
+          <button type="button" onClick={() => onPasteAgain(pasteText)}>
+            Paste again
+          </button>
+        </>
       )}
     </section>
   )

@@ -9,27 +9,19 @@ import { ErrorBanner } from '../features/pipeline/ErrorBanner'
 import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ProjectLauncher } from '../features/projects/ProjectLauncher'
+import { ProjectRestorePanel } from '../features/projects/ProjectRestorePanel'
 import { JsonViewer } from '../features/viewer/JsonViewer'
-import { ProjectRepository, getRawSizeBytes, sanitizeProjectForPersistence } from '../persistence/projectRepository'
+import { ProjectRepository, getRawSizeBytes } from '../persistence/projectRepository'
 import {
   appendNodeAfterActive,
   createInitialPipeline,
+  getExecutionNodes,
   markDownstreamStale,
   selectActiveNode,
-  type PipelineState,
 } from '../pipeline/pipelineModel'
-import { resetWorkbenchViewState, restoreWorkbenchViewState, useWorkbenchStore } from '../state/useWorkbenchStore'
+import { resetWorkbenchViewState, useWorkbenchStore } from '../state/useWorkbenchStore'
+import { JsonWorkerRuntime } from '../workers/workerRuntime'
 import { AppShell } from './AppShell'
-
-type PersistedProjectContext = {
-  id: string
-  name: string
-  createdAt: number
-  rawSource: RawSource
-  rawJsonText?: string
-}
-
-const ACTIVE_PROJECT_STORAGE_KEY = 'jsonhunter.active-project'
 
 function getNodeDraftValue(node: PipelineNode) {
   if (node.type === 'js') return node.code
@@ -45,6 +37,12 @@ function createProjectName() {
   return 'Pasted JSON'
 }
 
+function createProjectNameFromSource(source: RawSource): string {
+  if (source.type === 'file') return source.fileName
+  if (source.type === 'url') return source.url
+  return createProjectName()
+}
+
 function createPasteSource(rawJsonText: string): RawSource {
   return {
     type: 'paste',
@@ -53,9 +51,26 @@ function createPasteSource(rawJsonText: string): RawSource {
   }
 }
 
+function createFileSource(file: File, rawJsonText: string): RawSource {
+  return {
+    type: 'file',
+    fileName: file.name,
+    sizeBytes: file.size || getRawSizeBytes(rawJsonText),
+  }
+}
+
+function createUrlSource(url: string, rawJsonText: string): RawSource {
+  return {
+    type: 'url',
+    url,
+    sizeBytes: getRawSizeBytes(rawJsonText),
+  }
+}
+
 function toPersistedProject(
-  project: PersistedProjectContext,
-  pipeline: PipelineState,
+  project: ProjectRecord,
+  nodes: ProjectRecord['pipeline'],
+  activeNodeId: string,
   viewerMode: ReturnType<typeof useWorkbenchStore.getState>['viewerMode'],
   selectedPath: ReturnType<typeof useWorkbenchStore.getState>['selectedPath'],
 ): ProjectRecord {
@@ -66,41 +81,11 @@ function toPersistedProject(
     updatedAt: Date.now(),
     rawSource: project.rawSource,
     rawJsonText: project.rawJsonText,
-    pipeline: pipeline.nodes,
-    activeNodeId: pipeline.activeNodeId,
+    pipeline: nodes,
+    activeNodeId,
     viewerMode,
     selectedPath,
   }
-}
-
-function buildPipelineState(project: ProjectRecord): PipelineState {
-  return selectActiveNode(
-    {
-      nodes: project.pipeline,
-      activeNodeId: project.activeNodeId,
-      nodeStatuses: {},
-    },
-    project.activeNodeId,
-  )
-}
-
-function readStoredProject(): ProjectRecord | undefined {
-  const raw = globalThis.localStorage?.getItem(ACTIVE_PROJECT_STORAGE_KEY)
-  if (!raw) return undefined
-
-  try {
-    return JSON.parse(raw) as ProjectRecord
-  } catch {
-    globalThis.localStorage?.removeItem(ACTIVE_PROJECT_STORAGE_KEY)
-    return undefined
-  }
-}
-
-function writeStoredProject(project: ProjectRecord) {
-  globalThis.localStorage?.setItem(
-    ACTIVE_PROJECT_STORAGE_KEY,
-    JSON.stringify(sanitizeProjectForPersistence(project)),
-  )
 }
 
 function getPlaceholderDetails(activeNode: PipelineNode) {
@@ -121,58 +106,61 @@ function getPlaceholderDetails(activeNode: PipelineNode) {
 
 export function App() {
   const repository = useMemo(() => new ProjectRepository(), [])
-  const [pipeline, setPipeline] = useState<PipelineState>(() => createInitialPipeline())
-  const [project, setProject] = useState<PersistedProjectContext | undefined>()
+  const workerRuntime = useMemo(() => new JsonWorkerRuntime(), [])
   const [rawValue, setRawValue] = useState<JsonValue | undefined>()
   const [editorValue, setEditorValue] = useState('')
   const [error, setError] = useState<string | undefined>()
   const [isHydrating, setIsHydrating] = useState(true)
 
+  const projects = useWorkbenchStore((state) => state.projects)
+  const activeProjectId = useWorkbenchStore((state) => state.activeProjectId)
+  const nodes = useWorkbenchStore((state) => state.nodes)
+  const activeNodeId = useWorkbenchStore((state) => state.activeNodeId)
+  const nodeStatuses = useWorkbenchStore((state) => state.nodeStatuses)
   const viewerMode = useWorkbenchStore((state) => state.viewerMode)
   const selectedPath = useWorkbenchStore((state) => state.selectedPath)
+  const createProjectFromRaw = useWorkbenchStore((state) => state.createProjectFromRaw)
+  const restoreProjects = useWorkbenchStore((state) => state.restoreProjects)
   const setViewerMode = useWorkbenchStore((state) => state.setViewerMode)
   const setSelectedPath = useWorkbenchStore((state) => state.setSelectedPath)
 
+  const project = useMemo(
+    () => projects.find((candidate) => candidate.id === activeProjectId),
+    [activeProjectId, projects],
+  )
+
   const activeNode = useMemo(
-    () => pipeline.nodes.find((node) => node.id === pipeline.activeNodeId) ?? pipeline.nodes[0],
-    [pipeline.activeNodeId, pipeline.nodes],
+    () => nodes.find((node) => node.id === activeNodeId) ?? nodes[0] ?? createInitialPipeline().nodes[0],
+    [activeNodeId, nodes],
   )
 
   useEffect(() => {
     void (async () => {
       try {
-        const latestProject = readStoredProject() ?? (await repository.listProjects())[0]
-        if (!latestProject?.rawJsonText) return
-
-        const parsed = JSON.parse(latestProject.rawJsonText) as JsonValue
-        setProject({
-          id: latestProject.id,
-          name: latestProject.name,
-          createdAt: latestProject.createdAt,
-          rawSource: latestProject.rawSource,
-          rawJsonText: latestProject.rawJsonText,
-        })
-        setRawValue(parsed)
-        setPipeline(buildPipelineState(latestProject))
-        restoreWorkbenchViewState(latestProject.viewerMode, latestProject.selectedPath)
+        await restoreProjects()
+        const activeProject = getActiveProject()
+        if (activeProject?.rawJsonText) {
+          await hydrateExistingProject(activeProject, activeProject.rawJsonText)
+        } else {
+          setRawValue(undefined)
+        }
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : String(nextError))
       } finally {
         setIsHydrating(false)
       }
     })()
-  }, [repository])
+  }, [restoreProjects])
 
   useEffect(() => {
     setEditorValue(getNodeDraftValue(activeNode))
   }, [activeNode])
 
   useEffect(() => {
-    if (isHydrating || !project || rawValue === undefined) return
-    const persistedProject = toPersistedProject(project, pipeline, viewerMode, selectedPath)
-    writeStoredProject(persistedProject)
+    if (isHydrating || !project) return
+    const persistedProject = toPersistedProject(project, nodes, activeNodeId, viewerMode, selectedPath)
     void repository.saveProject(persistedProject)
-  }, [isHydrating, pipeline, project, rawValue, repository, selectedPath, viewerMode])
+  }, [activeNodeId, isHydrating, nodes, project, repository, selectedPath, viewerMode])
 
   const detailsPreview = useMemo(() => {
     if (rawValue === undefined) return getPlaceholderDetails(activeNode)
@@ -191,17 +179,94 @@ export function App() {
   }, [activeNode, rawValue, selectedPath])
 
   const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
-  const hasProject = rawValue !== undefined && project !== undefined
+  const hasProject = project !== undefined
+  const hasLoadedRaw = rawValue !== undefined && project !== undefined
+
+  function getActiveProject() {
+    const state = useWorkbenchStore.getState()
+    return state.projects.find((candidate) => candidate.id === state.activeProjectId)
+  }
+
+  function updatePipeline(updater: (current: ReturnType<typeof createInitialPipeline>) => ReturnType<typeof createInitialPipeline>) {
+    useWorkbenchStore.setState((state) => updater({
+      nodes: state.nodes,
+      activeNodeId: state.activeNodeId,
+      nodeStatuses: state.nodeStatuses,
+    }))
+  }
+
+  function updateRuntimeProject(nextProject: ProjectRecord) {
+    useWorkbenchStore.setState((state) => ({
+      projects: state.projects.map((candidate) => (candidate.id === nextProject.id ? nextProject : candidate)),
+    }))
+  }
+
+  async function parseRawWithWorker(rawJsonText: string) {
+    const response = await workerRuntime.handle({
+      type: 'parseRaw',
+      jobId: crypto.randomUUID(),
+      rawJsonText,
+    })
+    if (response.type === 'workerError') throw new Error(response.message)
+    return JSON.parse(rawJsonText) as JsonValue
+  }
+
+  async function executeProjectNodes(projectRecord: ProjectRecord) {
+    const pipeline = selectActiveNode(
+      {
+        nodes: projectRecord.pipeline,
+        activeNodeId: projectRecord.activeNodeId,
+        nodeStatuses: {},
+      },
+      projectRecord.activeNodeId,
+    )
+    const executionNodes = getExecutionNodes(pipeline)
+    if (executionNodes.length <= 1) return
+    const response = await workerRuntime.handle({
+      type: 'executePipeline',
+      jobId: crypto.randomUUID(),
+      nodes: executionNodes,
+    })
+    if (response.type === 'workerError') throw new Error(response.message)
+  }
+
+  async function hydrateExistingProject(projectRecord: ProjectRecord, rawJsonText: string, rawSource = projectRecord.rawSource) {
+    const parsed = await parseRawWithWorker(rawJsonText)
+    const nextProject = {
+      ...projectRecord,
+      rawSource,
+      rawJsonText,
+      updatedAt: Date.now(),
+      pipeline: useWorkbenchStore.getState().nodes,
+      activeNodeId: useWorkbenchStore.getState().activeNodeId,
+      viewerMode: useWorkbenchStore.getState().viewerMode,
+      selectedPath: useWorkbenchStore.getState().selectedPath,
+    }
+
+    await executeProjectNodes(nextProject)
+    updateRuntimeProject(nextProject)
+    setRawValue(parsed)
+    setError(undefined)
+    void repository.saveProject(nextProject)
+  }
+
+  async function createProject(name: string, source: RawSource, rawJsonText: string) {
+    const parsed = await parseRawWithWorker(rawJsonText)
+    await createProjectFromRaw(name, source, rawJsonText)
+    setRawValue(parsed)
+    resetWorkbenchViewState()
+    setError(undefined)
+  }
 
   function handleSelectNode(id: string) {
-    setPipeline((current) => selectActiveNode(current, id))
+    updatePipeline((current) => selectActiveNode(current, id))
     setError(undefined)
   }
 
   function handleAddNode(type: Exclude<PipelineNodeType, 'raw'>) {
-    if (!hasProject) return
+    if (!hasLoadedRaw) return
 
-    setPipeline((current) => {
+    updatePipeline((current) => {
       const count = current.nodes.filter((node): node is ProcessingNode => node.type === type).length + 1
       const node: ProcessingNode =
         type === 'js'
@@ -226,7 +291,7 @@ export function App() {
   function handleSave() {
     if (activeNode.type === 'raw') return
 
-    setPipeline((current) =>
+    updatePipeline((current) =>
       markDownstreamStale(
         {
           ...current,
@@ -258,24 +323,66 @@ export function App() {
     setError('Execution is not connected yet.')
   }
 
-  function handleCreateFromPaste(text: string) {
+  async function handleCreateFromPaste(text: string) {
     try {
-      const parsed = JSON.parse(text) as JsonValue
-      const now = Date.now()
-      const rawSource = createPasteSource(text)
-      const nextProject = {
-        id: crypto.randomUUID(),
-        name: createProjectName(),
-        createdAt: now,
-        rawSource,
-        rawJsonText: text,
-      }
+      await createProject(createProjectName(), createPasteSource(text), text)
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError))
+    }
+  }
 
-      setProject(nextProject)
-      setRawValue(parsed)
-      setPipeline(createInitialPipeline())
-      resetWorkbenchViewState()
-      setError(undefined)
+  async function handleLoadUrl(url: string) {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`Unable to load URL: ${response.status}`)
+      const rawJsonText = await response.text()
+      await createProject(createProjectNameFromSource({ type: 'url', url }), createUrlSource(url, rawJsonText), rawJsonText)
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError))
+    }
+  }
+
+  async function handleOpenFile(file: File) {
+    try {
+      const rawJsonText = await file.text()
+      await createProject(createProjectNameFromSource({ type: 'file', fileName: file.name, sizeBytes: file.size }), createFileSource(file, rawJsonText), rawJsonText)
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError))
+    }
+  }
+
+  async function handleReloadUrl(url: string) {
+    const activeProject = getActiveProject()
+    if (!activeProject) return
+
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`Unable to load URL: ${response.status}`)
+      const rawJsonText = await response.text()
+      await hydrateExistingProject(activeProject, rawJsonText, createUrlSource(url, rawJsonText))
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError))
+    }
+  }
+
+  async function handleRestorePaste(text: string) {
+    const activeProject = getActiveProject()
+    if (!activeProject) return
+
+    try {
+      await hydrateExistingProject(activeProject, text, createPasteSource(text))
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError))
+    }
+  }
+
+  async function handleRestoreFile(file: File) {
+    const activeProject = getActiveProject()
+    if (!activeProject) return
+
+    try {
+      const rawJsonText = await file.text()
+      await hydrateExistingProject(activeProject, rawJsonText, createFileSource(file, rawJsonText))
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError))
     }
@@ -283,20 +390,35 @@ export function App() {
 
   const pipelinePane = hasProject ? (
     <PipelineFlow
-      nodes={pipeline.nodes}
-      activeNodeId={pipeline.activeNodeId}
-      nodeStatuses={pipeline.nodeStatuses}
+      nodes={nodes}
+      activeNodeId={activeNodeId}
+      nodeStatuses={nodeStatuses}
       onSelectNode={handleSelectNode}
       onAddNode={handleAddNode}
     />
   ) : (
-    <ProjectLauncher onPasteJson={handleCreateFromPaste} onLoadUrl={() => {}} onOpenFile={() => {}} />
+    <ProjectLauncher onPasteJson={handleCreateFromPaste} onLoadUrl={handleLoadUrl} onOpenFile={handleOpenFile} />
   )
+
+  const restorePane =
+    !project || hasLoadedRaw
+      ? undefined
+      : project.rawSource.type === 'url'
+        ? (() => {
+            const { url } = project.rawSource
+            return <ProjectRestorePanel sourceLabel={url} onReloadUrl={() => handleReloadUrl(url)} />
+          })()
+        : project.rawSource.type === 'file'
+          ? (() => {
+              const { fileName } = project.rawSource
+              return <ProjectRestorePanel sourceLabel={fileName} onReselectFile={handleRestoreFile} />
+            })()
+          : <ProjectRestorePanel sourceLabel={project.rawSource.label} onPasteAgain={handleRestorePaste} />
 
   const viewerPane = hasProject ? (
     <div className="editorPane">
       <ErrorBanner message={error} />
-      {activeNode.type === 'raw' ? (
+      {hasLoadedRaw && activeNode.type === 'raw' ? (
         <JsonViewer
           mode={viewerMode}
           selectedPath={selectedPath}
@@ -304,7 +426,7 @@ export function App() {
           onModeChange={setViewerMode}
           onSelectPath={setSelectedPath}
         />
-      ) : (
+      ) : hasLoadedRaw ? (
         <NodeEditor
           language={language}
           value={editorValue}
@@ -313,6 +435,8 @@ export function App() {
           onSave={handleSave}
           onCancel={handleCancel}
         />
+      ) : (
+        restorePane
       )}
     </div>
   ) : (
