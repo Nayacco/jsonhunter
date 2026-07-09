@@ -12,9 +12,18 @@ type PipelineFlowProps = {
   onSelectNode(id: string): void
   onEditNode?(id: string): void
   onAddNode(type: Exclude<PipelineNodeType, 'raw'>): void
+  onOpenAnotherJson?(): void
 }
 
-export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, onEditNode, onAddNode }: PipelineFlowProps) {
+export function PipelineFlow({
+  nodes,
+  activeNodeId,
+  nodeStatuses,
+  onSelectNode,
+  onEditNode,
+  onAddNode,
+  onOpenAnotherJson,
+}: PipelineFlowProps) {
   return (
     <Toolbar
       label="Pipeline"
@@ -49,6 +58,7 @@ export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, 
       }
       endContent={
         <VStack gap={1}>
+          {onOpenAnotherJson && <Button label="Open another JSON" variant="ghost" onClick={onOpenAnotherJson} />}
           <Button label="Add JS" onClick={() => onAddNode('js')} />
           <Button label="Add DuckDB" onClick={() => onAddNode('duckdb')} />
         </VStack>

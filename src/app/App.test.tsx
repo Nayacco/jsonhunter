@@ -147,6 +147,61 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
   })
 
+  it('lets a loaded project return to the launcher and create a different JSON project', async () => {
+    const user = userEvent.setup()
+    workerRequest.mockImplementation(async (request: any) => {
+      if (request.type === 'parseRaw') {
+        return {
+          type: 'parseRawResult',
+          jobId: request.jobId,
+          summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{items}' },
+          value: JSON.parse(request.rawJsonText),
+        }
+      }
+      if (request.type === 'getDetails') {
+        return {
+          type: 'detailsResult',
+          jobId: request.jobId,
+          path: request.path,
+          value: request.path.length === 0 ? { items: [{ id: 2, name: 'Lin' }] } : 'Lin',
+          summary: {
+            type: request.path.length === 0 ? 'object' : 'string',
+            label: 'value',
+            childCount: 0,
+            preview: request.path.length === 0 ? '{items}' : '"Lin"',
+          },
+        }
+      }
+      return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
+    })
+    await createPasteProject(user)
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
+    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    fireEvent.change(screen.getByLabelText(/paste json/i), {
+      target: { value: '{"items":[{"id":2,"name":"Lin"}]}' },
+    })
+    await user.click(screen.getByRole('button', { name: /create from paste/i }))
+
+    await waitFor(() => {
+      expect(workerRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'parseRaw',
+          rawJsonText: '{"items":[{"id":2,"name":"Lin"}]}',
+        }),
+      )
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /create from paste/i })).toBeNull()
+    })
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
+
+    expect(await screen.findByRole('button', { name: /Lin/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Ada/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /create from paste/i })).toBeNull()
+  })
+
   it('marks downstream nodes stale after saving a middle node', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)

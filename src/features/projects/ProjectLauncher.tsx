@@ -11,9 +11,10 @@ type ProjectLauncherProps = {
   onPasteJson(text: string): void
   onLoadUrl(url: string): void
   onOpenFile(file: File): void
+  onCancel?(): void
 }
 
-export function ProjectLauncher({ onPasteJson, onLoadUrl, onOpenFile }: ProjectLauncherProps) {
+export function ProjectLauncher({ onPasteJson, onLoadUrl, onOpenFile, onCancel }: ProjectLauncherProps) {
   const [pasteText, setPasteText] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -22,6 +23,7 @@ export function ProjectLauncher({ onPasteJson, onLoadUrl, onOpenFile }: ProjectL
     <Section>
       <VStack gap={4}>
         <Heading level={1}>JSON Hunter</Heading>
+        {onCancel && <Button label="Back to current project" variant="ghost" onClick={onCancel} />}
         <TextArea
           label="Paste JSON"
           value={pasteText}

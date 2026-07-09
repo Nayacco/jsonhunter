@@ -65,4 +65,23 @@ describe('ProjectLauncher', () => {
 
     expect(submitted).toBe(file)
   })
+
+  it('can cancel back to the current project when one exists', async () => {
+    const user = userEvent.setup()
+    let didCancel = false
+    renderWithProviders(
+      <ProjectLauncher
+        onPasteJson={() => {}}
+        onLoadUrl={() => {}}
+        onOpenFile={() => {}}
+        onCancel={() => {
+          didCancel = true
+        }}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /back to current project/i }))
+
+    expect(didCancel).toBe(true)
+  })
 })

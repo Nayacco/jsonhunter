@@ -210,6 +210,7 @@ export function App() {
   const [error, setError] = useState<string | undefined>()
   const [errorNodeId, setErrorNodeId] = useState<string | undefined>()
   const [isHydrating, setIsHydrating] = useState(true)
+  const [isProjectLauncherOpen, setIsProjectLauncherOpen] = useState(false)
 
   const projects = useWorkbenchStore((state) => state.projects)
   const activeProjectId = useWorkbenchStore((state) => state.activeProjectId)
@@ -464,6 +465,7 @@ export function App() {
     resetWorkbenchViewState()
     setError(undefined)
     setErrorNodeId(undefined)
+    setIsProjectLauncherOpen(false)
   }
 
   function createDraftNode(type: Exclude<PipelineNodeType, 'raw'>): ProcessingNode {
@@ -627,6 +629,19 @@ export function App() {
     }
   }
 
+  function handleOpenProjectLauncher() {
+    setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
+    setLatestDraftOutput(undefined)
+    setError(undefined)
+    setErrorNodeId(undefined)
+    setIsProjectLauncherOpen(true)
+  }
+
+  function handleCloseProjectLauncher() {
+    setIsProjectLauncherOpen(false)
+  }
+
   async function handleReloadUrl(url: string) {
     const activeProject = getActiveProject()
     if (!activeProject) return
@@ -684,18 +699,29 @@ export function App() {
     })
   }
 
-  const pipelinePane = hasProject ? (
-    <PipelineFlow
-      nodes={displayedPipeline.nodes}
-      activeNodeId={displayedPipeline.activeNodeId}
-      nodeStatuses={displayedNodeStatuses}
-      onSelectNode={(id) => void handleSelectNode(id)}
-      onEditNode={handleEditNode}
-      onAddNode={handleAddNode}
+  const projectLauncher = (
+    <ProjectLauncher
+      onPasteJson={handleCreateFromPaste}
+      onLoadUrl={handleLoadUrl}
+      onOpenFile={handleOpenFile}
+      onCancel={hasProject ? handleCloseProjectLauncher : undefined}
     />
-  ) : (
-    <ProjectLauncher onPasteJson={handleCreateFromPaste} onLoadUrl={handleLoadUrl} onOpenFile={handleOpenFile} />
   )
+
+  const pipelinePane =
+    hasProject && !isProjectLauncherOpen ? (
+      <PipelineFlow
+        nodes={displayedPipeline.nodes}
+        activeNodeId={displayedPipeline.activeNodeId}
+        nodeStatuses={displayedNodeStatuses}
+        onSelectNode={(id) => void handleSelectNode(id)}
+        onEditNode={handleEditNode}
+        onAddNode={handleAddNode}
+        onOpenAnotherJson={handleOpenProjectLauncher}
+      />
+    ) : (
+      projectLauncher
+    )
 
   const restorePane =
     !project || hasLoadedRaw || isAutoHydratingPersistedRawProject
