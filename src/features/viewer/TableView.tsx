@@ -1,7 +1,9 @@
 import type { JsonPath } from '../../domain/jsonTypes'
 import { VirtualRows } from './VirtualRows'
+import type { ViewerRow } from './viewerRows'
 
 type TableViewProps = {
+  rows: ViewerRow[]
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
 }
@@ -10,9 +12,7 @@ function pathLabel(path: JsonPath) {
   return path.length === 0 ? 'root' : path.join('.')
 }
 
-export function TableView({ selectedPath, onSelectPath }: TableViewProps) {
-  const rows = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6', 'row-7', 'row-8']
-
+export function TableView({ rows, selectedPath, onSelectPath }: TableViewProps) {
   return (
     <section className="jsonModePane" aria-label="Table view">
       <div className="jsonModeHeader">
@@ -25,9 +25,9 @@ export function TableView({ selectedPath, onSelectPath }: TableViewProps) {
       <VirtualRows
         count={rows.length}
         renderRow={(index) => (
-          <button type="button" className="jsonModeRow" onClick={() => onSelectPath(['table', index])}>
-            <span>{rows[index]}</span>
-            <span>value {index + 1}</span>
+          <button type="button" className="jsonModeRow" onClick={() => onSelectPath(rows[index].path)}>
+            <span>{rows[index].label}</span>
+            <span>{rows[index].value ?? `value ${index + 1}`}</span>
           </button>
         )}
       />

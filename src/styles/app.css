@@ -206,3 +206,128 @@ select {
 .pipelineActions button:hover {
   background: rgba(30, 42, 64, 0.98);
 }
+
+.jsonViewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.jsonViewerToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.viewSwitcher {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.viewSwitcherButton,
+.jsonModeHeader button {
+  border: 1px solid rgba(106, 127, 158, 0.35);
+  border-radius: 8px;
+  background: rgba(22, 31, 48, 0.92);
+  color: #eef4ff;
+  padding: 8px 12px;
+}
+
+.viewSwitcherButton[aria-pressed="true"] {
+  border-color: #8ec5ff;
+  background: rgba(34, 52, 78, 0.98);
+}
+
+.breadcrumb {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  justify-items: end;
+}
+
+.breadcrumbLabel,
+.jsonModeContext {
+  color: #b7c4d8;
+}
+
+.breadcrumbValue {
+  max-width: min(100%, 32rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jsonModePane {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.jsonModeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jsonModeHeader h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.virtualScroll {
+  min-height: 14rem;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+  border: 1px solid rgba(106, 127, 158, 0.28);
+  border-radius: 8px;
+  background: rgba(11, 17, 29, 0.92);
+}
+
+.jsonModeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.jsonModeRow + .jsonModeRow {
+  border-top: 1px solid rgba(106, 127, 158, 0.16);
+}
+
+.jsonModeRowIndented {
+  padding-left: 24px;
+}
+
+.jsonModeRowSource {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  justify-content: flex-start;
+}
+
+@media (max-width: 800px) {
+  .jsonViewerToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .breadcrumb {
+    justify-items: start;
+  }
+}

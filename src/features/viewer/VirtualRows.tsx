@@ -13,8 +13,21 @@ export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRows
     count,
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimateSize,
+    initialRect: {
+      height: estimateSize * Math.min(count, 8),
+      width: 0,
+    },
     overscan: 8,
   })
+  const virtualItems = virtualizer.getVirtualItems()
+  const itemsToRender =
+    virtualItems.length > 0
+      ? virtualItems
+      : Array.from({ length: count }, (_, index) => ({
+          index,
+          key: index,
+          start: index * estimateSize,
+        }))
 
   return (
     <div ref={parentRef} className="virtualScroll">
@@ -24,7 +37,7 @@ export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRows
           position: 'relative',
         }}
       >
-        {virtualizer.getVirtualItems().map((item) => (
+        {itemsToRender.map((item) => (
           <div
             key={item.key}
             style={{
