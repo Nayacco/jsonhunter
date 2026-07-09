@@ -686,7 +686,7 @@ export function App() {
           : <ProjectRestorePanel sourceLabel={project.rawSource.label} onPasteAgain={handleRestorePaste} />
 
   const viewerPane = hasProject ? (
-    <div className="editorPane">
+    <>
       <ErrorBanner message={error} />
       {draft ? (
         <>
@@ -726,11 +726,9 @@ export function App() {
       ) : (
         restorePane
       )}
-    </div>
+    </>
   ) : (
-    <div className="editorPane">
-      <ErrorBanner message={error} />
-    </div>
+    <ErrorBanner message={error} />
   )
 
   return (

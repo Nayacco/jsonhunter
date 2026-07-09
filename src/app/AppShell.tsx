@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { AppShell as AstryxAppShell } from '@astryxdesign/core/AppShell'
+import { Layout, LayoutContent, LayoutHeader, LayoutPanel } from '@astryxdesign/core/Layout'
 
 type AppShellProps = {
   pipeline: ReactNode
@@ -8,12 +10,30 @@ type AppShellProps = {
 
 export function AppShell({ pipeline, viewer, details }: AppShellProps) {
   return (
-    <main className="workbenchShell">
-      <section className="leftPane">
-        <div className="pipelinePane">{pipeline}</div>
-        <div className="viewerPane">{viewer}</div>
-      </section>
-      <aside className="detailsPane">{details}</aside>
-    </main>
+    <AstryxAppShell contentPadding={0} height="fill" variant="section">
+      <Layout
+        height="fill"
+        content={
+          <Layout
+            height="fill"
+            header={
+              <LayoutHeader role="banner" label="Pipeline" hasDivider>
+                {pipeline}
+              </LayoutHeader>
+            }
+            content={
+              <LayoutContent role="region" label="JSON viewer" isScrollable>
+                {viewer}
+              </LayoutContent>
+            }
+          />
+        }
+        end={
+          <LayoutPanel role="complementary" label="Details" hasDivider isScrollable>
+            {details}
+          </LayoutPanel>
+        }
+      />
+    </AstryxAppShell>
   )
 }
