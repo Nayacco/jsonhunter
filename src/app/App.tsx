@@ -181,6 +181,7 @@ export function App() {
   const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
   const hasProject = project !== undefined
   const hasLoadedRaw = rawValue !== undefined && project !== undefined
+  const isAutoHydratingPersistedRawProject = isHydrating && project?.rawJsonText !== undefined
 
   function getActiveProject() {
     const state = useWorkbenchStore.getState()
@@ -401,7 +402,7 @@ export function App() {
   )
 
   const restorePane =
-    !project || hasLoadedRaw
+    !project || hasLoadedRaw || isAutoHydratingPersistedRawProject
       ? undefined
       : project.rawSource.type === 'url'
         ? (() => {

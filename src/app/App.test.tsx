@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProjectRecord } from '../domain/projectTypes'
@@ -168,6 +168,40 @@ describe('App', () => {
     })
     expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
   })
+
+  it('does not show the restore prompt while a persisted raw project is hydrating', async () => {
+    let resolveWorkerRequest: ((value: { type: 'parseRawResult'; jobId: string; summary: any }) => void) | undefined
+    workerRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkerRequest = resolve
+        }),
+    )
+    listProjects.mockImplementation(async () => [makePasteProject()])
+
+    renderWithProviders(<App />)
+
+    await waitFor(() => {
+      expect(workerRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'parseRaw',
+          rawJsonText: '{"ok":true}',
+        }),
+      )
+    })
+    expect(screen.queryByRole('heading', { name: /raw json required/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /paste again/i })).toBeNull()
+
+    await act(async () => {
+      resolveWorkerRequest?.({
+        type: 'parseRawResult',
+        jobId: 'job',
+        summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{ok}' },
+      })
+    })
+
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+  })
 })
 
 function makeUrlProject(): ProjectRecord {
@@ -177,6 +211,21 @@ function makeUrlProject(): ProjectRecord {
     createdAt: 1,
     updatedAt: 2,
     rawSource: { type: 'url', url: 'https://example.com/data.json' },
+    pipeline: [{ id: 'raw', type: 'raw', label: 'Raw' }],
+    activeNodeId: 'raw',
+    viewerMode: 'columns',
+    selectedPath: [],
+  }
+}
+
+function makePasteProject(): ProjectRecord {
+  return {
+    id: 'project-paste',
+    name: 'Pasted JSON',
+    createdAt: 1,
+    updatedAt: 2,
+    rawSource: { type: 'paste', label: 'Pasted JSON', sizeBytes: 11 },
+    rawJsonText: '{"ok":true}',
     pipeline: [{ id: 'raw', type: 'raw', label: 'Raw' }],
     activeNodeId: 'raw',
     viewerMode: 'columns',

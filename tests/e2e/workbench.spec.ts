@@ -44,5 +44,11 @@ test('shows a restore prompt after refreshing an oversized pasted project', asyn
   await page.reload()
 
   await expect(page.getByRole('heading', { name: /raw json required/i })).toBeVisible()
+  await page.getByLabel(/paste json again/i).fill(oversizedJson)
   await expect(page.getByRole('button', { name: /paste again/i })).toBeVisible()
+  await page.getByRole('button', { name: /paste again/i }).click()
+
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^columns$/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Columns' })).toBeVisible()
 })
