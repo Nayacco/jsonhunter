@@ -6,13 +6,14 @@ type TableViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
 function pathLabel(path: JsonPath) {
   return path.length === 0 ? 'root' : path.join('.')
 }
 
-export function TableView({ rows, selectedPath, onSelectPath }: TableViewProps) {
+export function TableView({ rows, selectedPath, onSelectPath, onWindowChange }: TableViewProps) {
   return (
     <section className="jsonModePane" aria-label="Table view">
       <div className="jsonModeHeader">
@@ -24,6 +25,7 @@ export function TableView({ rows, selectedPath, onSelectPath }: TableViewProps) 
       <div className="jsonModeContext">Selected: {pathLabel(selectedPath)}</div>
       <VirtualRows
         count={rows.totalCount}
+        onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
         renderRow={(index) => {
           const row = getViewerRow(rows, index)
 

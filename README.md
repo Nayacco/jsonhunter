@@ -1,6 +1,6 @@
 # JSON Hunter
 
-JSON Hunter is a frontend JSON workbench for loading raw JSON from paste, file, or URL, then inspecting the current raw node and editing placeholder pipeline steps locally.
+JSON Hunter is a frontend JSON workbench for loading raw JSON from paste, file, or URL, inspecting pipeline outputs, and previewing or saving local JS/DuckDB processing steps.
 
 ## Getting started
 

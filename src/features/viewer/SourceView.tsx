@@ -6,13 +6,14 @@ type SourceViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
 function pathLabel(path: JsonPath) {
   return path.length === 0 ? 'root' : path.join('.')
 }
 
-export function SourceView({ rows, selectedPath, onSelectPath }: SourceViewProps) {
+export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }: SourceViewProps) {
   return (
     <section className="jsonModePane" aria-label="Source view">
       <div className="jsonModeHeader">
@@ -25,6 +26,7 @@ export function SourceView({ rows, selectedPath, onSelectPath }: SourceViewProps
       <VirtualRows
         count={rows.totalCount}
         estimateSize={40}
+        onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
         renderRow={(index) => {
           const row = getViewerRow(rows, index)
 

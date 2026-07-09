@@ -13,7 +13,8 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
   await expect(page.getByRole('button', { name: /^save$/i })).toBeVisible()
 
   await page.getByRole('button', { name: /^run$/i }).click()
-  await expect(page.getByText('Execution is not connected yet.')).toBeVisible()
+  await page.getByRole('button', { name: /^table$/i }).click()
+  await expect(page.getByRole('button', { name: /Ada/ })).toBeVisible()
 
   await page.getByRole('button', { name: /^save$/i }).click()
   await page.getByRole('button', { name: /raw/i }).click()
@@ -83,7 +84,32 @@ test('keeps large pasted json view switching responsive without rendering every 
 
   await page.getByRole('button', { name: /^table$/i }).click()
   await expect(page.getByRole('heading', { name: 'Table' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'row-0' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'row-7' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'row-4999' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^row-0\b/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^row-7\b/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^row-4999\b/ })).toHaveCount(0)
+
+  await page.locator('.virtualScroll').evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+    element.dispatchEvent(new Event('scroll', { bubbles: true }))
+  })
+
+  await expect(page.getByRole('button', { name: /^row-4999\b/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^row-0\b/ })).toHaveCount(0)
+})
+
+test('drops unsaved draft processing nodes after refresh', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill('{"items":[{"id":1,"name":"Ada"}]}')
+  await page.getByRole('button', { name: /create from paste/i }).click()
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+
+  await page.getByRole('button', { name: /add js/i }).click()
+  await expect(page.getByRole('button', { name: /js 1/i })).toBeVisible()
+
+  await page.reload()
+
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /js 1/i })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^save$/i })).toHaveCount(0)
 })

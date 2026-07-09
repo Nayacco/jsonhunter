@@ -13,10 +13,10 @@ The current workbench flow is:
 ## Viewer and pipeline notes
 
 - The raw node uses the four viewer modes in `src/features/viewer`: Columns, Tree, Table, and Source.
-- Raw viewer rows are derived from the in-memory `rawValue` in `App` and passed into `JsonViewer` as bounded windows.
+- Viewer rows are derived from the current in-memory output in `App` and passed into `JsonViewer` as bounded windows.
 - Viewer rows are rendered through `VirtualRows`, which keeps the fallback DOM footprint bounded instead of rendering an entire large result set at once.
 - JS and DuckDB nodes share the Monaco-backed editor surface in `NodeEditor`.
-- Processing-node execution still is not connected; Run shows the current placeholder error state.
+- Processing-node execution runs through the worker client. `Run` previews a draft output without persisting node config, while `Save` commits the config and keeps node outputs in memory only.
 - The details panel summarizes the selected JSON path and keeps provenance anchored to the active pipeline node.
 
 ## Persistence rules

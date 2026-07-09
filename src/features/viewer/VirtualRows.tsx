@@ -1,9 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 type VirtualRowsProps = {
   count: number
   estimateSize?: number
+  onWindowChange?(startIndex: number, count: number): void
   renderRow(index: number): ReactNode
 }
 
@@ -11,7 +12,7 @@ const DEFAULT_VISIBLE_ROWS = 8
 const DEFAULT_OVERSCAN = 8
 const FALLBACK_ROW_LIMIT = DEFAULT_VISIBLE_ROWS + DEFAULT_OVERSCAN * 2
 
-export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRowsProps) {
+export function VirtualRows({ count, estimateSize = 32, onWindowChange, renderRow }: VirtualRowsProps) {
   const parentRef = useRef<HTMLDivElement | null>(null)
   const virtualizer = useVirtualizer({
     count,
@@ -32,6 +33,15 @@ export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRows
           key: index,
           start: index * estimateSize,
         }))
+  const renderedStartIndex = itemsToRender.length === 0 ? 0 : Math.max(0, itemsToRender[0].index)
+  const renderedEndIndex =
+    itemsToRender.length === 0 ? 0 : Math.min(count, itemsToRender[itemsToRender.length - 1].index + 1)
+  const renderedCount = Math.max(renderedEndIndex - renderedStartIndex, 0)
+
+  useEffect(() => {
+    if (!onWindowChange || renderedCount === 0) return
+    onWindowChange(renderedStartIndex, renderedCount)
+  }, [onWindowChange, renderedCount, renderedStartIndex])
 
   return (
     <div ref={parentRef} className="virtualScroll">

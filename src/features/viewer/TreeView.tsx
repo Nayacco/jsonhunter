@@ -6,13 +6,14 @@ type TreeViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
 function pathLabel(path: JsonPath) {
   return path.length === 0 ? 'root' : path.join('.')
 }
 
-export function TreeView({ rows, selectedPath, onSelectPath }: TreeViewProps) {
+export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
   return (
     <section className="jsonModePane" aria-label="Tree view">
       <div className="jsonModeHeader">
@@ -24,6 +25,7 @@ export function TreeView({ rows, selectedPath, onSelectPath }: TreeViewProps) {
       <div className="jsonModeContext">Selected: {pathLabel(selectedPath)}</div>
       <VirtualRows
         count={rows.totalCount}
+        onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
         renderRow={(index) => {
           const row = getViewerRow(rows, index)
 

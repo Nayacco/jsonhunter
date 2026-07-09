@@ -31,6 +31,7 @@ export class JsonWorkerRuntime {
             type: 'parseRawResult',
             jobId: request.jobId,
             summary: summarizeJson(parsed),
+            value: parsed,
           }
         }
         this.rawValue = cloneJsonValue(parsed)
@@ -39,6 +40,7 @@ export class JsonWorkerRuntime {
           type: 'parseRawResult',
           jobId: request.jobId,
           summary: summarizeJson(this.currentValue),
+          value: cloneJsonValue(this.currentValue),
         }
       }
 
@@ -69,6 +71,7 @@ export class JsonWorkerRuntime {
           jobId: request.jobId,
           activeNodeId: request.nodes[request.nodes.length - 1]?.id ?? 'raw',
           summary: summarizeJson(output),
+          output: cloneJsonValue(output),
         }
       }
 

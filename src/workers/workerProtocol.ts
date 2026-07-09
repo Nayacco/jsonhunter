@@ -10,8 +10,8 @@ export type WorkerRequest =
   | { type: 'getViewWindow'; jobId: string; mode: ViewerMode; path: JsonPath; start: number; count: number }
 
 export type WorkerResponse =
-  | { type: 'parseRawResult'; jobId: string; summary: JsonSummary }
-  | { type: 'executePipelineResult'; jobId: string; activeNodeId: string; summary: JsonSummary }
+  | { type: 'parseRawResult'; jobId: string; summary: JsonSummary; value: JsonValue }
+  | { type: 'executePipelineResult'; jobId: string; activeNodeId: string; summary: JsonSummary; output: JsonValue }
   | { type: 'detailsResult'; jobId: string; path: JsonPath; value: JsonValue | undefined; summary: JsonSummary }
   | { type: 'viewWindowResult'; jobId: string; rows: JsonValue[]; total: number }
   | { type: 'workerError'; jobId: string; message: string; stack?: string }

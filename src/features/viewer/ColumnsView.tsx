@@ -6,13 +6,14 @@ type ColumnsViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
 function pathLabel(path: JsonPath) {
   return path.length === 0 ? 'root' : path.join('.')
 }
 
-export function ColumnsView({ rows, selectedPath, onSelectPath }: ColumnsViewProps) {
+export function ColumnsView({ rows, selectedPath, onSelectPath, onWindowChange }: ColumnsViewProps) {
   return (
     <section className="jsonModePane" aria-label="Columns view">
       <div className="jsonModeHeader">
@@ -24,6 +25,7 @@ export function ColumnsView({ rows, selectedPath, onSelectPath }: ColumnsViewPro
       <div className="jsonModeContext">Selected: {pathLabel(selectedPath)}</div>
       <VirtualRows
         count={rows.totalCount}
+        onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
         renderRow={(index) => {
           const row = getViewerRow(rows, index)
 

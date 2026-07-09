@@ -23,6 +23,13 @@ export type ViewerRowsByMode = {
 
 const DERIVED_WINDOW_SIZE = 8
 
+type ViewerWindowRequest = {
+  startIndex: number
+  count: number
+}
+
+export type ViewerWindowRequests = Partial<Record<keyof ViewerRowsByMode, ViewerWindowRequest>>
+
 function createViewerRowWindow(rows: ViewerRow[], totalCount = rows.length, startIndex = 0): ViewerRowWindow {
   return {
     startIndex,
@@ -83,19 +90,31 @@ export function getViewerRow(window: ViewerRowWindow, index: number) {
   return offset >= 0 && offset < window.rows.length ? window.rows[offset] : undefined
 }
 
-export function deriveViewerRowsFromJson(rawValue: JsonValue, selectedPath: JsonPath = []): Required<ViewerRowsByMode> {
+export function deriveViewerRowsFromJson(
+  rawValue: JsonValue,
+  selectedPath: JsonPath = [],
+  windows: ViewerWindowRequests = {},
+): Required<ViewerRowsByMode> {
   const scopedValue = selectedPath.length === 0 ? rawValue : getAtPath(rawValue, selectedPath)
   const value = scopedValue === undefined ? rawValue : scopedValue
 
   return {
-    columns: createColumnsWindow(value, selectedPath),
-    tree: createTreeWindow(value, selectedPath),
-    table: createTableWindow(value, selectedPath),
-    source: createSourceWindow(value, selectedPath),
+    columns: createColumnsWindow(value, selectedPath, windows.columns),
+    tree: createTreeWindow(value, selectedPath, windows.tree),
+    table: createTableWindow(value, selectedPath, windows.table),
+    source: createSourceWindow(value, selectedPath, windows.source),
   }
 }
 
-function createColumnsWindow(value: JsonValue, basePath: JsonPath) {
+function normalizeWindow(window?: ViewerWindowRequest) {
+  return {
+    startIndex: Math.max(window?.startIndex ?? 0, 0),
+    count: Math.max(window?.count ?? DERIVED_WINDOW_SIZE, 0),
+  }
+}
+
+function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
+  const { startIndex, count } = normalizeWindow(window)
   const entries = getChildEntries(value, basePath)
   if (entries.length === 0) {
     return createViewerRowWindow([
@@ -107,58 +126,72 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath) {
     ])
   }
 
+  const visibleEntries = entries.slice(startIndex, startIndex + count)
   return createViewerRowWindow(
-    entries.slice(0, DERIVED_WINDOW_SIZE).map((entry) => ({
+    visibleEntries.map((entry) => ({
       label: entry.label,
       path: entry.path,
       value: summarizeJson(entry.value).preview,
     })),
     entries.length,
+    startIndex,
   )
 }
 
-function createTreeWindow(value: JsonValue, basePath: JsonPath) {
+function createTreeWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
+  const { startIndex, count } = normalizeWindow(window)
   const entries = getChildEntries(value, basePath)
   const rootLabel = basePath.length === 0 ? 'root' : formatPath(['root', ...basePath])
-  const rows: ViewerRow[] = [
-    {
+  const totalCount = entries.length + 1
+  const rows: ViewerRow[] = []
+
+  if (startIndex === 0 && count > 0) {
+    rows.push({
       label: rootLabel,
       path: basePath,
       value: summarizeJson(value).label,
-    },
-    ...entries.slice(0, Math.max(DERIVED_WINDOW_SIZE - 1, 0)).map((entry) => ({
+    })
+  }
+
+  const childStart = Math.max(startIndex - 1, 0)
+  const childCount = startIndex === 0 ? Math.max(count - 1, 0) : count
+  rows.push(
+    ...entries.slice(childStart, childStart + childCount).map((entry) => ({
       label: formatPath(['root', ...entry.path]),
       path: entry.path,
       value: summarizeJson(entry.value).preview,
     })),
-  ]
+  )
 
-  return createViewerRowWindow(rows, Math.max(entries.length + 1, rows.length))
+  return createViewerRowWindow(rows, totalCount, startIndex)
 }
 
-function createTableWindow(value: JsonValue, basePath: JsonPath) {
+function createTableWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
+  const { startIndex, count } = normalizeWindow(window)
   const tableSource = getTableSource(value, basePath)
   if (tableSource) {
-    const rows = tableSource.value.slice(0, DERIVED_WINDOW_SIZE).map((entry, index) => ({
+    const rows = tableSource.value.slice(startIndex, startIndex + count).map((entry, offset) => {
+      const index = startIndex + offset
+      return {
       label: getTableRowLabel(entry, index),
       path: appendPath(tableSource.path, index),
       value: summarizeJson(entry).preview,
-    }))
-    return createViewerRowWindow(rows, tableSource.value.length)
+      }
+    })
+    return createViewerRowWindow(rows, tableSource.value.length, startIndex)
   }
 
-  return createColumnsWindow(value, basePath)
+  return createColumnsWindow(value, basePath, window)
 }
 
-function createSourceWindow(value: JsonValue, basePath: JsonPath) {
-  const lines = JSON.stringify(value, null, 2)?.split('\n') ?? [String(value)]
-  return createViewerRowWindow(
-    lines.slice(0, DERIVED_WINDOW_SIZE).map((line) => ({
-      label: line,
-      path: basePath,
-    })),
-    lines.length,
+function createSourceWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
+  const { startIndex, count } = normalizeWindow(window)
+  const source = getSourceLineSource(value, basePath)
+  const rows = Array.from({ length: Math.max(Math.min(count, source.totalCount - startIndex), 0) }, (_, offset) =>
+    source.getRow(startIndex + offset),
   )
+
+  return createViewerRowWindow(rows, source.totalCount, startIndex)
 }
 
 type ViewerTableSource = {
@@ -216,4 +249,65 @@ function getTableRowLabel(value: JsonValue, index: number) {
   }
 
   return `row-${index}`
+}
+
+type SourceLineSource = {
+  totalCount: number
+  getRow(index: number): ViewerRow
+}
+
+function getSourceLineSource(value: JsonValue, basePath: JsonPath): SourceLineSource {
+  const tableSource = getTableSource(value, basePath)
+  if (tableSource) {
+    return {
+      totalCount: tableSource.value.length + 2,
+      getRow(index) {
+        if (index === 0) return { label: '{', path: basePath }
+        if (index === tableSource.value.length + 1) return { label: '}', path: basePath }
+        const itemIndex = index - 1
+        return {
+          label: JSON.stringify(tableSource.value[itemIndex]),
+          path: appendPath(tableSource.path, itemIndex),
+        }
+      },
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      totalCount: value.length,
+      getRow(index) {
+        return {
+          label: JSON.stringify(value[index]),
+          path: appendPath(basePath, index),
+        }
+      },
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+    return {
+      totalCount: entries.length + 2,
+      getRow(index) {
+        if (index === 0) return { label: '{', path: basePath }
+        if (index === entries.length + 1) return { label: '}', path: basePath }
+        const [key, entry] = entries[index - 1]
+        return {
+          label: `${JSON.stringify(key)}: ${JSON.stringify(entry)}`,
+          path: appendPath(basePath, key),
+        }
+      },
+    }
+  }
+
+  return {
+    totalCount: 1,
+    getRow() {
+      return {
+        label: JSON.stringify(value),
+        path: basePath,
+      }
+    },
+  }
 }

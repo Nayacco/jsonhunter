@@ -5,10 +5,11 @@ type PipelineFlowProps = {
   activeNodeId: string
   nodeStatuses: Record<string, PipelineNodeStatus>
   onSelectNode(id: string): void
+  onEditNode?(id: string): void
   onAddNode(type: Exclude<PipelineNodeType, 'raw'>): void
 }
 
-export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, onAddNode }: PipelineFlowProps) {
+export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, onEditNode, onAddNode }: PipelineFlowProps) {
   return (
     <div className="pipelineFlow" aria-label="Pipeline">
       <div className="pipelineNodes">
@@ -24,6 +25,17 @@ export function PipelineFlow({ nodes, activeNodeId, nodeStatuses, onSelectNode, 
               <strong>{node.label}</strong>
               <span>{node.type}</span>
             </button>
+            {node.type !== 'raw' && onEditNode ? (
+              <button
+                type="button"
+                className="pipelineNodeEdit"
+                aria-label="Edit node"
+                title={`Edit ${node.label}`}
+                onClick={() => onEditNode(node.id)}
+              >
+                Edit
+              </button>
+            ) : null}
           </div>
         ))}
       </div>

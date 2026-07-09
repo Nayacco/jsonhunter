@@ -49,6 +49,49 @@ describe('deriveViewerRowsFromJson', () => {
     })
   })
 
+  it('derives a lower table window by visible index instead of permanent placeholders', () => {
+    const rawValue = {
+      rows: Array.from({ length: 5000 }, (_, index) => ({
+        id: index,
+        name: `row-${index}`,
+      })),
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      table: { startIndex: 4992, count: 8 },
+    })
+
+    expect(rows.table.totalCount).toBe(5000)
+    expect(rows.table.startIndex).toBe(4992)
+    expect(rows.table.rows).toHaveLength(8)
+    expect(rows.table.rows[0]).toMatchObject({
+      label: 'row-4992',
+      path: ['rows', 4992],
+    })
+    expect(rows.table.rows[7]).toMatchObject({
+      label: 'row-4999',
+      path: ['rows', 4999],
+    })
+  })
+
+  it('keeps source windows bounded without stringifying every item', () => {
+    const rawValue = {
+      rows: Array.from({ length: 5000 }, (_, index) => ({
+        id: index,
+        name: `row-${index}`,
+      })),
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      source: { startIndex: 4998, count: 4 },
+    })
+
+    expect(rows.source.totalCount).toBe(5002)
+    expect(rows.source.startIndex).toBe(4998)
+    expect(rows.source.rows.map((row) => row.label).join('\n')).toContain('row-4997')
+    expect(rows.source.rows.map((row) => row.label).join('\n')).not.toContain('row-0')
+  })
+
   it('keeps a selected null leaf scoped instead of falling back to the root value', () => {
     const rawValue = {
       rows: [

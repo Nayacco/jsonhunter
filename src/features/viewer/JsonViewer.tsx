@@ -15,9 +15,10 @@ type JsonViewerProps = {
   rows?: ViewerRowsByMode
   onModeChange(mode: ViewerMode): void
   onSelectPath(path: JsonPath): void
+  onWindowChange?(mode: ViewerMode, window: { startIndex: number; count: number }): void
 }
 
-export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange, onSelectPath }: JsonViewerProps) {
+export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange, onSelectPath, onWindowChange }: JsonViewerProps) {
   const viewerRows = getViewerRows(rows)
 
   return (
@@ -26,10 +27,38 @@ export function JsonViewer({ mode, selectedPath, breadcrumb, rows, onModeChange,
         <ViewSwitcher mode={mode} onModeChange={onModeChange} />
         <Breadcrumb value={breadcrumb} />
       </header>
-      {mode === 'columns' && <ColumnsView rows={viewerRows.columns} selectedPath={selectedPath} onSelectPath={onSelectPath} />}
-      {mode === 'tree' && <TreeView rows={viewerRows.tree} selectedPath={selectedPath} onSelectPath={onSelectPath} />}
-      {mode === 'table' && <TableView rows={viewerRows.table} selectedPath={selectedPath} onSelectPath={onSelectPath} />}
-      {mode === 'source' && <SourceView rows={viewerRows.source} selectedPath={selectedPath} onSelectPath={onSelectPath} />}
+      {mode === 'columns' && (
+        <ColumnsView
+          rows={viewerRows.columns}
+          selectedPath={selectedPath}
+          onSelectPath={onSelectPath}
+          onWindowChange={(window) => onWindowChange?.('columns', window)}
+        />
+      )}
+      {mode === 'tree' && (
+        <TreeView
+          rows={viewerRows.tree}
+          selectedPath={selectedPath}
+          onSelectPath={onSelectPath}
+          onWindowChange={(window) => onWindowChange?.('tree', window)}
+        />
+      )}
+      {mode === 'table' && (
+        <TableView
+          rows={viewerRows.table}
+          selectedPath={selectedPath}
+          onSelectPath={onSelectPath}
+          onWindowChange={(window) => onWindowChange?.('table', window)}
+        />
+      )}
+      {mode === 'source' && (
+        <SourceView
+          rows={viewerRows.source}
+          selectedPath={selectedPath}
+          onSelectPath={onSelectPath}
+          onWindowChange={(window) => onWindowChange?.('source', window)}
+        />
+      )}
     </section>
   )
 }
