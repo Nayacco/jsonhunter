@@ -39,4 +39,4 @@ Projects are stored in IndexedDB under the local `jsonhunter` database.
 - Pipeline metadata, active node, selected path, and active viewer mode are restored from persistence.
 - Node execution outputs are not persisted yet.
 
-More implementation notes live in [docs/development.md](/D:/github/jsonhunter/docs/development.md).
+More implementation notes live in [docs/development.md](docs/development.md).
