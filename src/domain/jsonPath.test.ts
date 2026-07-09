@@ -8,6 +8,13 @@ describe('jsonPath', () => {
     expect(parsePath('root.data[0].name')).toEqual(path)
   })
 
+  it('round-trips arbitrary object keys', () => {
+    const path = ['root', 'data.key', 0, 'weird[name]', 'quoted"key', '']
+    const formatted = formatPath(path)
+    expect(formatted).toBe('root["data.key"][0]["weird[name]"]["quoted\\"key"][""]')
+    expect(parsePath(formatted)).toEqual(path)
+  })
+
   it('reads a value at a path', () => {
     const value = { data: [{ name: 'Ada' }] }
     expect(getAtPath(value, ['data', 0, 'name'])).toBe('Ada')

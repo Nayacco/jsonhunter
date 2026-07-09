@@ -1,4 +1,4 @@
-import { appendPath } from './jsonPath'
+import { appendPath, formatPath } from './jsonPath'
 import { getJsonType, type JsonPath, type JsonValue } from './jsonTypes'
 
 export type TableColumn = {
@@ -7,7 +7,7 @@ export type TableColumn = {
 }
 
 export type TableCell = {
-  value: JsonValue
+  value: JsonValue | undefined
   path: JsonPath
   type: ReturnType<typeof getJsonType>
 }
@@ -37,7 +37,7 @@ export function buildTableModel(value: JsonValue, basePath: JsonPath): TableMode
         id: 'scalar',
         path: basePath,
         cells: {
-          path: { value: basePath.join('.'), path: basePath, type: 'string' },
+          path: { value: formatPath(basePath), path: basePath, type: 'string' },
           type: { value: getJsonType(value), path: basePath, type: 'string' },
           value: { value, path: basePath, type: getJsonType(value) },
         },
@@ -60,7 +60,7 @@ function buildArrayTable(value: JsonValue[], basePath: JsonPath): TableModel {
         index: { value: index, path: itemPath, type: 'number' },
       }
       for (const key of objectKeys) {
-        const cellValue = (item as Record<string, JsonValue>)[key] ?? null
+        const cellValue = (item as Record<string, JsonValue | undefined>)[key]
         cells[key] = { value: cellValue, path: appendPath(itemPath, key), type: getJsonType(cellValue) }
       }
       return { id: String(index), path: itemPath, cells }
