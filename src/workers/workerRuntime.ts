@@ -9,6 +9,7 @@ export class JsonWorkerRuntime {
   async handle(request: WorkerRequest): Promise<WorkerResponse> {
     try {
       if (request.type === 'parseRaw') {
+        this.currentValue = undefined
         this.currentValue = JSON.parse(request.rawJsonText) as JsonValue
         return {
           type: 'parseRawResult',

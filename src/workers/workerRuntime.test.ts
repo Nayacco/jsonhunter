@@ -29,4 +29,22 @@ describe('JsonWorkerRuntime', () => {
       path: ['data', 0, 'id'],
     })
   })
+
+  it('invalid parse clears current value so details reflect failure state', async () => {
+    const runtime = new JsonWorkerRuntime()
+
+    const first = await runtime.handle({ type: 'parseRaw', jobId: 'job-1', rawJsonText: '{"data":[{"id":1}]}' })
+    expect(first.type).toBe('parseRawResult')
+
+    const second = await runtime.handle({ type: 'parseRaw', jobId: 'job-2', rawJsonText: '{invalid-json' })
+    expect(second).toMatchObject({ type: 'workerError', jobId: 'job-2' })
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'job-3', path: ['data', 0, 'id'] })
+    expect(details).toMatchObject({
+      type: 'detailsResult',
+      jobId: 'job-3',
+      path: ['data', 0, 'id'],
+      value: undefined,
+    })
+  })
 })
