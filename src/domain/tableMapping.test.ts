@@ -40,4 +40,3 @@ describe('buildTableModel', () => {
     expect(model.rows[0].cells.path.value).toBe(formatPath(['data', 0, 'name']))
   })
 })
-

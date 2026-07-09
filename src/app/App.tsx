@@ -41,6 +41,12 @@ type DraftOutput = {
   value: JsonValue
 }
 
+type DraftPreviewSnapshot = {
+  value: JsonValue | undefined
+  sourceNodeId: string
+  details: DetailsState | undefined
+}
+
 type DetailsState = {
   path: string
   type: string
@@ -188,6 +194,7 @@ export function App() {
   const [displayedValue, setDisplayedValue] = useState<JsonValue | undefined>()
   const [displayedSourceNodeId, setDisplayedSourceNodeId] = useState('raw')
   const [draft, setDraft] = useState<DraftNodeState | undefined>()
+  const [draftPreviewSnapshot, setDraftPreviewSnapshot] = useState<DraftPreviewSnapshot | undefined>()
   const [latestDraftOutput, setLatestDraftOutput] = useState<DraftOutput | undefined>()
   const [editorValue, setEditorValue] = useState('')
   const [details, setDetails] = useState<DetailsState | undefined>()
@@ -400,6 +407,7 @@ export function App() {
     setDisplayedValue(parsed)
     setDisplayedSourceNodeId('raw')
     setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
     setError(undefined)
     setErrorNodeId(undefined)
@@ -432,6 +440,7 @@ export function App() {
     setDisplayedValue(parsed)
     setDisplayedSourceNodeId('raw')
     setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
     resetWorkbenchViewState()
     setError(undefined)
@@ -466,6 +475,7 @@ export function App() {
     if (!hasLoadedRaw) return
 
     setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
     try {
       await executeSavedPipelineToNode(id)
@@ -479,6 +489,11 @@ export function App() {
     const node = nodes.find((candidate): candidate is ProcessingNode => candidate.id === id && candidate.type !== 'raw')
     if (!node) return
     setDraft({ mode: 'edit', baseNodeId: id, node })
+    setDraftPreviewSnapshot({
+      value: displayedValue,
+      sourceNodeId: displayedSourceNodeId,
+      details,
+    })
     setEditorValue(getNodeDraftValue(node))
     setLatestDraftOutput(undefined)
     setError(undefined)
@@ -490,6 +505,11 @@ export function App() {
 
     const node = createDraftNode(type)
     setDraft({ mode: 'create', baseNodeId: activeNodeId, node })
+    setDraftPreviewSnapshot({
+      value: displayedValue,
+      sourceNodeId: displayedSourceNodeId,
+      details,
+    })
     setEditorValue(getNodeDraftValue(node))
     setLatestDraftOutput(undefined)
     setError(undefined)
@@ -536,13 +556,20 @@ export function App() {
     setDisplayedValue(output)
     setDisplayedSourceNodeId(nextDraft.node.id)
     setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
     setError(undefined)
     setErrorNodeId(undefined)
   }
 
   function handleCancel() {
+    if (draftPreviewSnapshot) {
+      setDisplayedValue(draftPreviewSnapshot.value)
+      setDisplayedSourceNodeId(draftPreviewSnapshot.sourceNodeId)
+      setDetails(draftPreviewSnapshot.details)
+    }
     setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
     setEditorValue(getNodeDraftValue(savedActiveNode))
     setError(undefined)

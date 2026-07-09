@@ -114,4 +114,87 @@ describe('WorkerClient', () => {
       jobId: 'job-b',
     })
   })
+
+  it('keeps a pending parse request alive when a details request starts', async () => {
+    const client = createWorkerClient()
+    const parseRequest = { type: 'parseRaw', jobId: 'job-parse', rawJsonText: '{"ok":1}' } as WorkerRequest
+    const detailsRequest = { type: 'getDetails', jobId: 'job-details', path: ['ok'] } as WorkerRequest
+
+    const pendingParse = client.request(parseRequest)
+    const pendingDetails = client.request(detailsRequest)
+
+    workers[0].dispatch('message', {
+      data: {
+        type: 'detailsResult',
+        jobId: 'job-details',
+        path: ['ok'],
+        value: 1,
+        summary: { type: 'number', label: '1', childCount: 0, preview: '1' },
+      },
+    })
+    workers[0].dispatch('message', {
+      data: {
+        type: 'parseRawResult',
+        jobId: 'job-parse',
+        summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{ok}' },
+        value: { ok: 1 },
+      },
+    })
+
+    await expect(pendingDetails).resolves.toMatchObject({
+      type: 'detailsResult',
+      jobId: 'job-details',
+    })
+    await expect(pendingParse).resolves.toMatchObject({
+      type: 'parseRawResult',
+      jobId: 'job-parse',
+    })
+  })
+
+  it('keeps a pending execute request alive when a view-window request starts', async () => {
+    const client = createWorkerClient()
+    const executeRequest = {
+      type: 'executePipeline',
+      jobId: 'job-execute',
+      nodes: [{ id: 'raw', type: 'raw', label: 'Raw' }],
+    } as WorkerRequest
+    const viewRequest = {
+      type: 'getViewWindow',
+      jobId: 'job-view',
+      mode: 'table',
+      path: ['rows'],
+      start: 0,
+      count: 8,
+    } as WorkerRequest
+
+    const pendingExecute = client.request(executeRequest)
+    const pendingView = client.request(viewRequest)
+
+    workers[0].dispatch('message', {
+      data: {
+        type: 'viewWindowResult',
+        jobId: 'job-view',
+        rows: [{ id: 1 }],
+        total: 1,
+      },
+    })
+    workers[0].dispatch('message', {
+      data: {
+        type: 'executePipelineResult',
+        jobId: 'job-execute',
+        activeNodeId: 'raw',
+        summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{rows}' },
+        output: { rows: [{ id: 1 }] },
+      },
+    })
+
+    await expect(pendingView).resolves.toMatchObject({
+      type: 'viewWindowResult',
+      jobId: 'job-view',
+    })
+    await expect(pendingExecute).resolves.toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'job-execute',
+    })
+  })
 })

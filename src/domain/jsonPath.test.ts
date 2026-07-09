@@ -34,4 +34,3 @@ describe('jsonPath', () => {
     expect(getAtPath(value, ['data', 0, 'name'])).toBe('Ada')
   })
 })
-

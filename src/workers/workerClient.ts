@@ -6,6 +6,7 @@ export type WorkerClient = {
 }
 
 type PendingRequest = {
+  request: WorkerRequest
   resolve(response: WorkerResponse): void
   reject(error: Error): void
 }
@@ -35,19 +36,21 @@ export function createWorkerClient(): WorkerClient {
     rejectAllPending(new Error('Worker message could not be decoded'))
   })
 
-  const rejectSupersededPending = (nextJobId: string): void => {
-    const superseded = Array.from(pending.entries()).filter(([jobId]) => jobId !== nextJobId)
+  const rejectSupersededPending = (nextRequest: WorkerRequest): void => {
+    const superseded = Array.from(pending.entries()).filter(
+      ([jobId, entry]) => jobId !== nextRequest.jobId && shouldSupersede(entry.request, nextRequest),
+    )
     superseded.forEach(([jobId, entry]) => {
       pending.delete(jobId)
-      entry.reject(new Error(`Worker request ${jobId} was superseded by ${nextJobId}`))
+      entry.reject(new Error(`Worker request ${jobId} was superseded by ${nextRequest.jobId}`))
     })
   }
 
   return {
     request(request) {
       return new Promise((resolve, reject) => {
-        rejectSupersededPending(request.jobId)
-        pending.set(request.jobId, { resolve, reject })
+        rejectSupersededPending(request)
+        pending.set(request.jobId, { request, resolve, reject })
         worker.postMessage(request)
       })
     },
@@ -56,4 +59,16 @@ export function createWorkerClient(): WorkerClient {
       worker.terminate()
     },
   }
+}
+
+function shouldSupersede(currentRequest: WorkerRequest, nextRequest: WorkerRequest): boolean {
+  if (isReadOnlyRequest(nextRequest)) {
+    return isReadOnlyRequest(currentRequest)
+  }
+
+  return true
+}
+
+function isReadOnlyRequest(request: WorkerRequest): boolean {
+  return request.type === 'getDetails' || request.type === 'getViewWindow'
 }

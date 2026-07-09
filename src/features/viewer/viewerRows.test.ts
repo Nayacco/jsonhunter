@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest'
 import { deriveViewerRowsFromJson } from './viewerRows'
 
 describe('deriveViewerRowsFromJson', () => {
+  function createWindowedArrayWithGuardedTail(length = 5000) {
+    const value = new Array(length)
+    for (let index = 0; index < 8; index += 1) {
+      value[index] = { id: index, name: `row-${index}` }
+    }
+    Object.defineProperty(value, length - 1, {
+      configurable: true,
+      enumerable: true,
+      get() {
+        throw new Error('out-of-window entry should not be read')
+      },
+    })
+    return value
+  }
+
   it('builds a bounded table window from raw array data nested under rows', () => {
     const rawValue = {
       rows: Array.from({ length: 5000 }, (_, index) => ({
@@ -90,6 +105,43 @@ describe('deriveViewerRowsFromJson', () => {
     expect(rows.source.startIndex).toBe(4998)
     expect(rows.source.rows.map((row) => row.label).join('\n')).toContain('row-4997')
     expect(rows.source.rows.map((row) => row.label).join('\n')).not.toContain('row-0')
+  })
+
+  it('does not read array entries outside the visible columns window', () => {
+    const rawValue = createWindowedArrayWithGuardedTail()
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      columns: { startIndex: 0, count: 8 },
+    })
+
+    expect(rows.columns.totalCount).toBe(5000)
+    expect(rows.columns.rows).toHaveLength(8)
+    expect(rows.columns.rows[0]).toMatchObject({
+      label: '0',
+      path: [0],
+      value: '{id, name}',
+    })
+  })
+
+  it('does not read array entries outside the visible tree window', () => {
+    const rawValue = createWindowedArrayWithGuardedTail()
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      tree: { startIndex: 0, count: 8 },
+    })
+
+    expect(rows.tree.totalCount).toBe(5001)
+    expect(rows.tree.rows).toHaveLength(8)
+    expect(rows.tree.rows[0]).toMatchObject({
+      label: 'root',
+      path: [],
+      value: 'Array(5000)',
+    })
+    expect(rows.tree.rows[1]).toMatchObject({
+      label: 'root[0]',
+      path: [0],
+      value: '{id, name}',
+    })
   })
 
   it('keeps a selected null leaf scoped instead of falling back to the root value', () => {

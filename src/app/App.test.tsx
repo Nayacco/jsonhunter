@@ -252,6 +252,97 @@ describe('App', () => {
     ).toBe(true)
   })
 
+  it('rolls back add and edit draft previews to the last saved endpoint on cancel', async () => {
+    const user = userEvent.setup()
+    workerRequest.mockImplementation(async (request: any) => {
+      if (request.type === 'parseRaw') {
+        return {
+          type: 'parseRawResult',
+          jobId: request.jobId,
+          summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{items}' },
+          value: JSON.parse(request.rawJsonText),
+        }
+      }
+      if (request.type === 'executePipeline') {
+        const activeNode = request.nodes.at(-1)
+        const activeName =
+          activeNode?.type === 'js' && activeNode.code.includes('Hopper')
+            ? 'Hopper'
+            : 'Grace'
+        return {
+          type: 'executePipelineResult',
+          jobId: request.jobId,
+          activeNodeId: activeNode?.id ?? 'raw',
+          summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{items}' },
+          output: { items: [{ id: 1, name: activeName }] },
+        }
+      }
+      if (request.type === 'getDetails') {
+        return {
+          type: 'detailsResult',
+          jobId: request.jobId,
+          path: request.path,
+          value: request.path.length === 0 ? { items: [{ id: 1, name: 'Grace' }] } : 'Grace',
+          summary: {
+            type: request.path.length === 0 ? 'object' : 'string',
+            label: 'value',
+            childCount: 0,
+            preview: request.path.length === 0 ? '{items}' : '"Grace"',
+          },
+        }
+      }
+      return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
+    })
+
+    await createPasteProject(user)
+
+    await user.click(screen.getByRole('button', { name: /^table$/i }))
+    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await user.click(screen.getByRole('button', { name: /^run$/i }))
+    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /js 1/i })).toBeNull()
+    expect(
+      saveProject.mock.calls.every(([savedProject]) =>
+        (savedProject as ProjectRecord).pipeline.every((node) => node.type === 'raw'),
+      ),
+    ).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await user.click(screen.getByRole('button', { name: /^run$/i }))
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await screen.findByRole('button', { name: /js 1/i })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
+    })
+    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+
+    await user.click(screen.getByTitle('Edit JS 1'))
+    const editor = await screen.findByTestId('monaco-editor')
+    fireEvent.change(editor, {
+      target: { value: 'export default input => ({ items: [{ id: 1, name: "Hopper" }] })' },
+    })
+    await user.click(screen.getByRole('button', { name: /^run$/i }))
+    expect(await screen.findByRole('button', { name: /Hopper/ })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Hopper/ })).toBeNull()
+    expect(
+      saveProject.mock.calls
+        .map(([savedProject]) => savedProject as ProjectRecord)
+        .every((savedProject) =>
+          savedProject.pipeline
+            .filter((node) => node.type === 'js')
+            .every((node) => !node.code.includes('Hopper')),
+        ),
+    ).toBe(true)
+  })
+
   it('saves a successful draft node and persists only pipeline metadata', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)

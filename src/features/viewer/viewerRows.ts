@@ -28,6 +28,12 @@ type ViewerWindowRequest = {
   count: number
 }
 
+type ChildEntry = {
+  label: string
+  path: JsonPath
+  value: JsonValue
+}
+
 export type ViewerWindowRequests = Partial<Record<keyof ViewerRowsByMode, ViewerWindowRequest>>
 
 function createViewerRowWindow(rows: ViewerRow[], totalCount = rows.length, startIndex = 0): ViewerRowWindow {
@@ -115,8 +121,8 @@ function normalizeWindow(window?: ViewerWindowRequest) {
 
 function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
   const { startIndex, count } = normalizeWindow(window)
-  const entries = getChildEntries(value, basePath)
-  if (entries.length === 0) {
+  const totalCount = getChildEntryCount(value)
+  if (totalCount === 0) {
     return createViewerRowWindow([
       {
         label: basePath.length === 0 ? 'value' : formatPath(basePath),
@@ -126,23 +132,23 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: View
     ])
   }
 
-  const visibleEntries = entries.slice(startIndex, startIndex + count)
+  const visibleEntries = getChildEntryWindow(value, basePath, startIndex, count)
   return createViewerRowWindow(
     visibleEntries.map((entry) => ({
       label: entry.label,
       path: entry.path,
       value: summarizeJson(entry.value).preview,
     })),
-    entries.length,
+    totalCount,
     startIndex,
   )
 }
 
 function createTreeWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
   const { startIndex, count } = normalizeWindow(window)
-  const entries = getChildEntries(value, basePath)
+  const childCountTotal = getChildEntryCount(value)
   const rootLabel = basePath.length === 0 ? 'root' : formatPath(['root', ...basePath])
-  const totalCount = entries.length + 1
+  const totalCount = childCountTotal + 1
   const rows: ViewerRow[] = []
 
   if (startIndex === 0 && count > 0) {
@@ -155,8 +161,9 @@ function createTreeWindow(value: JsonValue, basePath: JsonPath, window?: ViewerW
 
   const childStart = Math.max(startIndex - 1, 0)
   const childCount = startIndex === 0 ? Math.max(count - 1, 0) : count
+  const visibleEntries = getChildEntryWindow(value, basePath, childStart, childCount)
   rows.push(
-    ...entries.slice(childStart, childStart + childCount).map((entry) => ({
+    ...visibleEntries.map((entry) => ({
       label: formatPath(['root', ...entry.path]),
       path: entry.path,
       value: summarizeJson(entry.value).preview,
@@ -199,21 +206,60 @@ type ViewerTableSource = {
   value: JsonValue[]
 }
 
-function getChildEntries(value: JsonValue, basePath: JsonPath) {
+function getChildEntryCount(value: JsonValue) {
   if (Array.isArray(value)) {
-    return value.map((entry, index) => ({
-      label: String(index),
-      path: appendPath(basePath, index),
-      value: entry,
-    }))
+    return value.length
   }
 
   if (value && typeof value === 'object') {
-    return Object.entries(value).map(([key, entry]) => ({
-      label: key,
-      path: appendPath(basePath, key),
-      value: entry,
-    }))
+    let count = 0
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) count += 1
+    }
+    return count
+  }
+
+  return 0
+}
+
+function getChildEntryWindow(
+  value: JsonValue,
+  basePath: JsonPath,
+  startIndex: number,
+  count: number,
+): ChildEntry[] {
+  if (count <= 0) return []
+
+  if (Array.isArray(value)) {
+    const endIndex = Math.min(value.length, startIndex + count)
+    const rows: ChildEntry[] = []
+    for (let index = startIndex; index < endIndex; index += 1) {
+      rows.push({
+        label: String(index),
+        path: appendPath(basePath, index),
+        value: value[index],
+      })
+    }
+    return rows
+  }
+
+  if (value && typeof value === 'object') {
+    const endIndex = startIndex + count
+    const rows: ChildEntry[] = []
+    let currentIndex = 0
+    for (const key in value) {
+      if (!Object.prototype.hasOwnProperty.call(value, key)) continue
+      if (currentIndex >= endIndex) break
+      if (currentIndex >= startIndex) {
+        rows.push({
+          label: key,
+          path: appendPath(basePath, key),
+          value: value[key],
+        })
+      }
+      currentIndex += 1
+    }
+    return rows
   }
 
   return []
