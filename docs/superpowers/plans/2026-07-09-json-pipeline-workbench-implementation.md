@@ -435,6 +435,7 @@ Expected: typecheck passes, Vitest reports no failing tests, and Vite build comp
 
 ```bash
 git add package.json package-lock.json index.html vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json vitest.config.ts playwright.config.ts src
+git add -A
 git commit -m "chore: scaffold React workbench app"
 ```
 
@@ -2656,15 +2657,13 @@ Expected: FAIL because restore is incomplete.
 
 - [ ] **Step 3: Wire repository into store actions**
 
-Extend `src/state/storeTypes.ts`:
+Extend `src/state/storeTypes.ts` by adding these imports and members to the existing `WorkbenchState` type:
 
 ```ts
 import type { RawSource } from '../domain/projectTypes'
 
-export type WorkbenchState = WorkbenchState & {
-  createProjectFromRaw(name: string, source: RawSource, rawJsonText: string): Promise<void>
-  restoreProjects(): Promise<void>
-}
+createProjectFromRaw(name: string, source: RawSource, rawJsonText: string): Promise<void>
+restoreProjects(): Promise<void>
 ```
 
 Implement in `src/state/useWorkbenchStore.ts` using `ProjectRepository`, `shouldPersistRawText`, and `createInitialPipeline`. Store `rawJsonText` only when `shouldPersistRawText(source, rawJsonText)` is true.
