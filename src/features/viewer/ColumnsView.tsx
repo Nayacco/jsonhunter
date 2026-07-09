@@ -70,10 +70,13 @@ export function ColumnsView({ columns, selectedPath, onSelectPath, onColumnWindo
                       return (
                         <Item
                           label={row.label}
-                          description={row.value ?? index + 1}
+                          endContent={
+                            <Text type="supporting" display="block" maxLines={1}>
+                              {row.value ?? index + 1}
+                            </Text>
+                          }
                           density="compact"
                           labelLines={1}
-                          descriptionLines={1}
                           isSelected={isSamePath(column.selectedChildPath, row.path)}
                           onClick={() => onSelectPath(row.path)}
                         />
