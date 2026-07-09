@@ -53,6 +53,10 @@ select {
   overflow: auto;
 }
 
+.detailsPane {
+  background: rgba(7, 11, 20, 0.94);
+}
+
 @media (max-width: 800px) {
   .workbenchShell {
     grid-template-columns: 1fr;
@@ -326,6 +330,75 @@ select {
   justify-content: flex-start;
 }
 
+.detailsPreview {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: 100%;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.detailsPreviewHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.detailsPreviewHeader h2,
+.detailsPreviewSection h3 {
+  margin: 0;
+}
+
+.detailsPreviewHeader p,
+.detailsPreviewSection p {
+  margin: 0;
+  color: #b7c4d8;
+}
+
+.detailsPreviewFacts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 14px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(106, 127, 158, 0.28);
+  border-radius: 8px;
+  background: rgba(17, 26, 46, 0.58);
+}
+
+.detailsPreviewFacts dt {
+  color: #b7c4d8;
+}
+
+.detailsPreviewFacts dd {
+  margin: 0;
+}
+
+.detailsPreviewFacts code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #eef4ff;
+}
+
+.detailsPreviewSection {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(106, 127, 158, 0.2);
+  border-radius: 8px;
+  background: rgba(11, 17, 29, 0.9);
+}
+
+.detailsPreviewBadge {
+  justify-self: start;
+  padding: 6px 10px;
+  border: 1px solid rgba(142, 197, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(34, 52, 78, 0.88);
+  color: #eef4ff;
+}
+
 @media (max-width: 800px) {
   .jsonViewerToolbar {
     align-items: flex-start;
@@ -334,5 +407,10 @@ select {
 
   .breadcrumb {
     justify-items: start;
+  }
+
+  .detailsPreview {
+    gap: 14px;
+    padding: 14px;
   }
 }

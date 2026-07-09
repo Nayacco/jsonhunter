@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AppShell } from './AppShell'
-import { ErrorBanner } from '../features/pipeline/ErrorBanner'
-import { NodeEditor } from '../features/pipeline/NodeEditor'
+import { DetailsPreview } from '../features/details/DetailsPreview'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
-import { ProjectLauncher } from '../features/projects/ProjectLauncher'
-import type { PipelineNode, PipelineNodeType, ProcessingNode } from '../domain/pipelineTypes'
+import { JsonViewer } from '../features/viewer/JsonViewer'
+import type { JsonPath } from '../domain/jsonTypes'
+import type { PipelineNodeType, ProcessingNode } from '../domain/pipelineTypes'
+import type { ViewerRowsByMode } from '../features/viewer/viewerRows'
 import {
   appendNodeAfterActive,
   createInitialPipeline,
-  markDownstreamStale,
   selectActiveNode,
   type PipelineState,
 } from '../pipeline/pipelineModel'
@@ -30,36 +30,99 @@ function createDemoPipeline(): PipelineState {
 
   return selectActiveNode(state, 'js-1')
 }
-
-function getNodeDraftValue(node: PipelineNode) {
-  if (node.type === 'js') return node.code
-  if (node.type === 'duckdb') return node.sql
-  return ''
-}
-
 function createNodeLabel(type: Exclude<PipelineNodeType, 'raw'>, index: number) {
   return type === 'js' ? `JS ${index}` : `DuckDB ${index}`
 }
 
+const demoViewerRows: ViewerRowsByMode = {
+  columns: {
+    startIndex: 0,
+    totalCount: 4,
+    rows: [
+      { label: 'ID', value: '42', path: ['data', 0, 'id'] },
+      { label: 'Name', value: '"Ada"', path: ['data', 0, 'name'] },
+      { label: 'Role', value: '"analyst"', path: ['data', 0, 'role'] },
+      { label: 'Status', value: '"ready"', path: ['meta', 'status'] },
+    ],
+  },
+  tree: {
+    startIndex: 0,
+    totalCount: 5,
+    rows: [
+      { label: 'root', value: 'object', path: [] },
+      { label: 'data', value: 'array(2)', path: ['data'] },
+      { label: 'data[0]', value: 'object', path: ['data', 0] },
+      { label: 'data[0].id', value: '42', path: ['data', 0, 'id'] },
+      { label: 'data[0].name', value: '"Ada"', path: ['data', 0, 'name'] },
+    ],
+  },
+  table: {
+    startIndex: 0,
+    totalCount: 3,
+    rows: [
+      { label: 'Row 1', value: 'Ada', path: ['data', 0, 'name'] },
+      { label: 'Row 2', value: 'Lin', path: ['data', 1, 'name'] },
+      { label: 'Status', value: 'ready', path: ['meta', 'status'] },
+    ],
+  },
+  source: {
+    startIndex: 0,
+    totalCount: 6,
+    rows: [
+      { label: '{', path: [] },
+      { label: '  "data": [', path: ['data'] },
+      { label: '    { "id": 42, "name": "Ada" },', path: ['data', 0] },
+      { label: '    { "id": 43, "name": "Lin" }', path: ['data', 1] },
+      { label: '  ],', path: ['meta'] },
+      { label: '  "status": "ready"', path: ['meta', 'status'] },
+    ],
+  },
+}
+
+type DetailRecord = {
+  type: string
+  valuePreview: string
+}
+
+const detailPreviewByPath = new Map<string, DetailRecord>([
+  [JSON.stringify([]), { type: 'object', valuePreview: '{ data: [...], meta: {...} }' }],
+  [JSON.stringify(['data']), { type: 'array', valuePreview: '[{ id: 42, name: "Ada" }, { id: 43, name: "Lin" }]' }],
+  [JSON.stringify(['data', 0]), { type: 'object', valuePreview: '{ id: 42, name: "Ada", role: "analyst" }' }],
+  [JSON.stringify(['data', 0, 'id']), { type: 'number', valuePreview: '42' }],
+  [JSON.stringify(['data', 0, 'name']), { type: 'string', valuePreview: '"Ada"' }],
+  [JSON.stringify(['data', 0, 'role']), { type: 'string', valuePreview: '"analyst"' }],
+  [JSON.stringify(['data', 1, 'name']), { type: 'string', valuePreview: '"Lin"' }],
+  [JSON.stringify(['meta']), { type: 'object', valuePreview: '{ status: "ready" }' }],
+  [JSON.stringify(['meta', 'status']), { type: 'string', valuePreview: '"ready"' }],
+])
+
+function formatPath(path: JsonPath) {
+  if (path.length === 0) return 'root'
+
+  return path.reduce<string>((label, segment) => {
+    if (typeof segment === 'number') return `${label}[${segment}]`
+    return `${label}.${segment}`
+  }, 'root')
+}
+
+function getDetailPreview(path: JsonPath): DetailRecord {
+  return detailPreviewByPath.get(JSON.stringify(path)) ?? { type: 'unknown', valuePreview: 'Unavailable' }
+}
+
 export function App() {
   const [pipeline, setPipeline] = useState<PipelineState>(() => createDemoPipeline())
-  const [editorValue, setEditorValue] = useState('')
-  const [error, setError] = useState<string | undefined>()
+  const [viewerMode, setViewerMode] = useState<'columns' | 'tree' | 'table' | 'source'>('columns')
+  const [selectedPath, setSelectedPath] = useState<JsonPath>(['data', 0, 'id'])
 
   const activeNode = useMemo(
     () => pipeline.nodes.find((node) => node.id === pipeline.activeNodeId) ?? pipeline.nodes[0],
     [pipeline.activeNodeId, pipeline.nodes],
   )
-
-  useEffect(() => {
-    setEditorValue(getNodeDraftValue(activeNode))
-  }, [activeNode])
-
-  const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
+  const selectedDetails = useMemo(() => getDetailPreview(selectedPath), [selectedPath])
+  const breadcrumb = useMemo(() => formatPath(selectedPath), [selectedPath])
 
   function handleSelectNode(id: string) {
     setPipeline((current) => selectActiveNode(current, id))
-    setError(undefined)
   }
 
   function handleAddNode(type: Exclude<PipelineNodeType, 'raw'>) {
@@ -82,42 +145,6 @@ export function App() {
 
       return appendNodeAfterActive(current, node)
     })
-    setError(undefined)
-  }
-
-  function handleSave() {
-    if (activeNode.type === 'raw') return
-
-    setPipeline((current) =>
-      markDownstreamStale(
-        {
-          ...current,
-          nodes: current.nodes.map((node) => {
-            if (node.id !== current.activeNodeId) return node
-            return node.type === 'js'
-              ? {
-                  ...node,
-                  code: editorValue,
-                }
-              : {
-                  ...node,
-                  sql: editorValue,
-                }
-          }),
-        },
-        current.activeNodeId,
-      ),
-    )
-    setError(undefined)
-  }
-
-  function handleCancel() {
-    setEditorValue(getNodeDraftValue(activeNode))
-    setError(undefined)
-  }
-
-  function handleRun() {
-    setError('Execution is not connected yet.')
   }
 
   return (
@@ -132,21 +159,23 @@ export function App() {
         />
       }
       viewer={
-        <div className="editorPane">
-          <ErrorBanner message={error} />
-          {activeNode.type === 'raw' ? null : (
-            <NodeEditor
-              language={language}
-              value={editorValue}
-              onChange={setEditorValue}
-              onRun={handleRun}
-              onSave={handleSave}
-              onCancel={handleCancel}
-            />
-          )}
-        </div>
+        <JsonViewer
+          mode={viewerMode}
+          selectedPath={selectedPath}
+          breadcrumb={breadcrumb}
+          rows={demoViewerRows}
+          onModeChange={setViewerMode}
+          onSelectPath={setSelectedPath}
+        />
       }
-      details={<ProjectLauncher onPasteJson={() => {}} onLoadUrl={() => {}} onOpenFile={() => {}} />}
+      details={
+        <DetailsPreview
+          path={breadcrumb}
+          type={selectedDetails.type}
+          valuePreview={selectedDetails.valuePreview}
+          sourceNodeLabel={activeNode.label}
+        />
+      }
     />
   )
 }
