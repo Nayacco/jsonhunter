@@ -15,6 +15,20 @@ describe('jsonPath', () => {
     expect(parsePath(formatted)).toEqual(path)
   })
 
+  it('round-trips bracket-quoted keys with escaped backslash/newline/tab/unicode', () => {
+    expect(parsePath(formatPath(['has\\backslash']))).toEqual(['has\\backslash'])
+    expect(parsePath(formatPath(['line\nbreak']))).toEqual(['line\nbreak'])
+    expect(parsePath(formatPath(['tab\tchar']))).toEqual(['tab\tchar'])
+    expect(parsePath(formatPath(['\u0061unicode']))).toEqual(['aunicode'])
+  })
+
+  it('decodes JSON escapes from bracket-quoted keys', () => {
+    expect(parsePath('["a\\\\b"]')).toEqual(['a\\b'])
+    expect(parsePath('["line\\nbreak"]')).toEqual(['line\nbreak'])
+    expect(parsePath('["tab\\tchar"]')).toEqual(['tab\tchar'])
+    expect(parsePath('["\\u0061"]')).toEqual(['a'])
+  })
+
   it('reads a value at a path', () => {
     const value = { data: [{ name: 'Ada' }] }
     expect(getAtPath(value, ['data', 0, 'name'])).toBe('Ada')

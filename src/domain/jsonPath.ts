@@ -78,9 +78,18 @@ function parseBracketSegment(input: string, index: number): { nextIndex: number;
   const nextChar = input[index + 1]
 
   if (nextChar === '"' || nextChar === "'") {
+    const quote = nextChar
+    const valueOffset = index + 1
+    if (quote === '"') {
+      const parsedSegment = parseJsonQuotedSegment(input, valueOffset)
+      if (input[parsedSegment.nextIndex + 1] !== ']') {
+        throw new Error(`Invalid JSON path: ${input}`)
+      }
+      return { nextIndex: parsedSegment.nextIndex + 1, value: parsedSegment.value }
+    }
+
     let segment = ''
     let currentIndex = index + 2
-    const quote = nextChar
 
     while (currentIndex < input.length) {
       const char = input[currentIndex]
@@ -112,4 +121,26 @@ function parseBracketSegment(input: string, index: number): { nextIndex: number;
   }
 
   return { nextIndex: closingBracketIndex, value: numericSegment }
+}
+
+function parseJsonQuotedSegment(input: string, start: number): { nextIndex: number; value: string } {
+  let index = start + 1
+  while (index < input.length) {
+    const char = input[index]
+    if (char === '\\') {
+      if (index + 1 >= input.length) throw new Error(`Invalid JSON path: ${input}`)
+      index += 2
+      continue
+    }
+    if (char === '"') {
+      const quotedText = input.slice(start, index + 1)
+      try {
+        return { nextIndex: index, value: JSON.parse(quotedText) }
+      } catch {
+        throw new Error(`Invalid JSON path: ${input}`)
+      }
+    }
+    index += 1
+  }
+  throw new Error(`Invalid JSON path: ${input}`)
 }
