@@ -6,13 +6,16 @@ import { executeJsNode } from './jsExecution'
 import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 
 export class JsonWorkerRuntime {
+  private rawValue: JsonValue | undefined
   private currentValue: JsonValue | undefined
 
   async handle(request: WorkerRequest): Promise<WorkerResponse> {
     try {
       if (request.type === 'parseRaw') {
+        this.rawValue = undefined
         this.currentValue = undefined
-        this.currentValue = JSON.parse(request.rawJsonText) as JsonValue
+        this.rawValue = JSON.parse(request.rawJsonText) as JsonValue
+        this.currentValue = this.rawValue
         return {
           type: 'parseRawResult',
           jobId: request.jobId,
@@ -32,7 +35,7 @@ export class JsonWorkerRuntime {
       }
 
       if (request.type === 'executePipeline') {
-        let output = this.currentValue
+        let output = this.rawValue
         if (output === undefined) throw new Error('Raw JSON is not loaded')
         for (const node of request.nodes) {
           if (node.type === 'raw') continue

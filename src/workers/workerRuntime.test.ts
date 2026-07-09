@@ -74,4 +74,43 @@ describe('JsonWorkerRuntime', () => {
     const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['items', 0, 'amount'] })
     expect(details).toMatchObject({ type: 'detailsResult', value: 4 })
   })
+
+  it('restarts each pipeline run from immutable raw JSON', async () => {
+    const runtime = new JsonWorkerRuntime()
+    await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })
+
+    const incrementNode = {
+      id: 'js-1',
+      type: 'js' as const,
+      label: 'Increment',
+      code: 'export default function transform(input) { return { count: input.count + 1 } }',
+    }
+
+    const first = await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'run-1',
+      nodes: [{ id: 'raw', type: 'raw', label: 'Raw' }, incrementNode],
+    })
+    expect(first).toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'run-1',
+      activeNodeId: 'js-1',
+      summary: { type: 'object', childCount: 1 },
+    })
+
+    const second = await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'run-2',
+      nodes: [{ id: 'raw', type: 'raw', label: 'Raw' }, incrementNode],
+    })
+    expect(second).toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'run-2',
+      activeNodeId: 'js-1',
+      summary: { type: 'object', childCount: 1 },
+    })
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 2 })
+  })
 })

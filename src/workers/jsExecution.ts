@@ -14,5 +14,39 @@ export async function executeJsNode(code: string, input: JsonValue): Promise<Jso
 }
 
 function assertJsonSerializable(value: unknown): asserts value is JsonValue {
-  JSON.stringify(value)
+  assertJsonValue(value, 'result')
+}
+
+function assertJsonValue(value: unknown, path: string): asserts value is JsonValue {
+  if (value === null) return
+
+  if (typeof value === 'string' || typeof value === 'boolean') return
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`JS pipeline output must be valid JSON: ${path} contains a non-finite number`)
+    }
+    return
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      assertJsonValue(entry, `${path}[${index}]`)
+    })
+    return
+  }
+
+  if (typeof value === 'object') {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error(`JS pipeline output must be valid JSON: ${path} is not a plain object`)
+    }
+
+    Object.entries(value).forEach(([key, entry]) => {
+      assertJsonValue(entry, `${path}.${key}`)
+    })
+    return
+  }
+
+  throw new Error(`JS pipeline output must be valid JSON: ${path} contains ${typeof value}`)
 }

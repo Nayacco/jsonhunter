@@ -46,3 +46,18 @@
 
 ## Commit
 - Intended commit message: `feat: add pipeline execution worker`
+
+## Review fix notes
+- Fixed the runtime state model in `src/workers/workerRuntime.ts` by separating immutable `rawValue` from the active `currentValue`. `parseRaw` now clears both slots on entry, parses once, and assigns the parsed JSON to both raw and active state. `executePipeline` now always starts from `rawValue` and only updates `currentValue` with the newest pipeline output, so repeated runs no longer compound prior transforms.
+- Added a regression test in `src/workers/workerRuntime.test.ts` that parses `{"count":1}`, runs the same incrementing JS pipeline twice, and verifies the displayed `count` stays `2` on the second run instead of drifting to `3`.
+- Fixed stale async worker responses in `src/workers/jsonWorker.ts` with a latest-job gate. The worker now tracks the newest `jobId` and posts a result or error only when the completing request still matches that newest job. Older async completions are silently dropped.
+- Added focused coverage in `src/workers/jsonWorker.test.ts` for both stale-result and stale-error suppression using the extracted `createLatestOnlyMessageHandler` helper.
+- Strengthened JS output validation in `src/workers/jsExecution.ts` to reject non-JSON values explicitly instead of trusting `JSON.stringify`. The validator now rejects `undefined`, functions, symbols, non-finite numbers, and non-plain-object instances, including when they appear nested inside arrays or objects.
+- Added focused validation tests in `src/workers/jsExecution.test.ts` covering `undefined`, function returns, and nested symbol values.
+
+## Verification after review fixes
+- `npm test -- src/workers/workerRuntime.test.ts`
+- `npm test -- src/workers/workerClient.test.ts`
+- `npm test -- src/workers/jsonWorker.test.ts`
+- `npm test -- src/workers/jsExecution.test.ts`
+- `npm run typecheck`
