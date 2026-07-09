@@ -1,9 +1,9 @@
 import type { JsonPath } from '../../domain/jsonTypes'
 import { VirtualRows } from './VirtualRows'
-import type { ViewerRow } from './viewerRows'
+import { getViewerRow, type ViewerRowWindow } from './viewerRows'
 
 type TableViewProps = {
-  rows: ViewerRow[]
+  rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
 }
@@ -23,13 +23,25 @@ export function TableView({ rows, selectedPath, onSelectPath }: TableViewProps) 
       </div>
       <div className="jsonModeContext">Selected: {pathLabel(selectedPath)}</div>
       <VirtualRows
-        count={rows.length}
-        renderRow={(index) => (
-          <button type="button" className="jsonModeRow" onClick={() => onSelectPath(rows[index].path)}>
-            <span>{rows[index].label}</span>
-            <span>{rows[index].value ?? `value ${index + 1}`}</span>
-          </button>
-        )}
+        count={rows.totalCount}
+        renderRow={(index) => {
+          const row = getViewerRow(rows, index)
+
+          if (!row) {
+            return (
+              <div className="jsonModeRow jsonModeRowPlaceholder">
+                <span>{`Loading row ${index + 1}`}</span>
+              </div>
+            )
+          }
+
+          return (
+            <button type="button" className="jsonModeRow" onClick={() => onSelectPath(row.path)}>
+              <span>{row.label}</span>
+              <span>{row.value ?? `value ${index + 1}`}</span>
+            </button>
+          )
+        }}
       />
     </section>
   )

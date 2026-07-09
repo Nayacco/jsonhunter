@@ -7,6 +7,10 @@ type VirtualRowsProps = {
   renderRow(index: number): ReactNode
 }
 
+const DEFAULT_VISIBLE_ROWS = 8
+const DEFAULT_OVERSCAN = 8
+const FALLBACK_ROW_LIMIT = DEFAULT_VISIBLE_ROWS + DEFAULT_OVERSCAN * 2
+
 export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRowsProps) {
   const parentRef = useRef<HTMLDivElement | null>(null)
   const virtualizer = useVirtualizer({
@@ -14,16 +18,16 @@ export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRows
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimateSize,
     initialRect: {
-      height: estimateSize * Math.min(count, 8),
+      height: estimateSize * Math.min(count, DEFAULT_VISIBLE_ROWS),
       width: 0,
     },
-    overscan: 8,
+    overscan: DEFAULT_OVERSCAN,
   })
   const virtualItems = virtualizer.getVirtualItems()
   const itemsToRender =
     virtualItems.length > 0
       ? virtualItems
-      : Array.from({ length: count }, (_, index) => ({
+      : Array.from({ length: Math.min(count, FALLBACK_ROW_LIMIT) }, (_, index) => ({
           index,
           key: index,
           start: index * estimateSize,
@@ -40,6 +44,7 @@ export function VirtualRows({ count, estimateSize = 32, renderRow }: VirtualRows
         {itemsToRender.map((item) => (
           <div
             key={item.key}
+            className="virtualRow"
             style={{
               position: 'absolute',
               top: 0,
