@@ -113,4 +113,69 @@ describe('JsonWorkerRuntime', () => {
     const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
     expect(details).toMatchObject({ type: 'detailsResult', value: 2 })
   })
+
+  it('does not commit stale parse results', async () => {
+    const runtime = new JsonWorkerRuntime()
+    await runtime.handle({ type: 'parseRaw', jobId: 'current', rawJsonText: '{"count":5}' })
+
+    await runtime.handle(
+      { type: 'parseRaw', jobId: 'stale', rawJsonText: '{"count":99}' },
+      { isCurrent: (jobId) => jobId !== 'stale' },
+    )
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 5 })
+  })
+
+  it('does not let an older delayed pipeline overwrite the current value', async () => {
+    const runtime = new JsonWorkerRuntime()
+    let latestJobId = 'job-1'
+
+    await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })
+
+    const staleRun = runtime.handle(
+      {
+        type: 'executePipeline',
+        jobId: 'job-1',
+        nodes: [
+          { id: 'raw', type: 'raw', label: 'Raw' },
+          {
+            id: 'slow-js',
+            type: 'js',
+            label: 'Slow increment',
+            code: 'export default async function transform(input) { await new Promise(resolve => setTimeout(resolve, 0)); return { count: await new Promise(resolve => setTimeout(() => resolve(input.count + 1), 20)) } }',
+          },
+        ],
+      },
+      { isCurrent: (jobId) => jobId === latestJobId },
+    )
+
+    latestJobId = 'job-2'
+    const currentRun = await runtime.handle(
+      {
+        type: 'executePipeline',
+        jobId: 'job-2',
+        nodes: [
+          { id: 'raw', type: 'raw', label: 'Raw' },
+          {
+            id: 'fast-js',
+            type: 'js',
+            label: 'Fast replace',
+            code: 'export default function transform() { return { count: 11 } }',
+          },
+        ],
+      },
+      { isCurrent: (jobId) => jobId === latestJobId },
+    )
+    expect(currentRun).toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'job-2',
+      activeNodeId: 'fast-js',
+    })
+
+    await staleRun
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 11 })
+  })
 })

@@ -5,17 +5,36 @@ import { executeDuckDbNode } from './duckDbExecution'
 import { executeJsNode } from './jsExecution'
 import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 
+type HandleOptions = {
+  isCurrent?: (jobId: string) => boolean
+}
+
 export class JsonWorkerRuntime {
   private rawValue: JsonValue | undefined
   private currentValue: JsonValue | undefined
 
-  async handle(request: WorkerRequest): Promise<WorkerResponse> {
+  async handle(request: WorkerRequest, options: HandleOptions = {}): Promise<WorkerResponse> {
     try {
       if (request.type === 'parseRaw') {
-        this.rawValue = undefined
-        this.currentValue = undefined
-        this.rawValue = JSON.parse(request.rawJsonText) as JsonValue
-        this.currentValue = this.rawValue
+        let parsed: JsonValue
+        try {
+          parsed = JSON.parse(request.rawJsonText) as JsonValue
+        } catch (error) {
+          if (!isStale(request.jobId, options)) {
+            this.rawValue = undefined
+            this.currentValue = undefined
+          }
+          throw error
+        }
+        if (isStale(request.jobId, options)) {
+          return {
+            type: 'parseRawResult',
+            jobId: request.jobId,
+            summary: summarizeJson(parsed),
+          }
+        }
+        this.rawValue = parsed
+        this.currentValue = parsed
         return {
           type: 'parseRawResult',
           jobId: request.jobId,
@@ -42,7 +61,9 @@ export class JsonWorkerRuntime {
           if (node.type === 'js') output = await executeJsNode(node.code, output)
           if (node.type === 'duckdb') output = await executeDuckDbNode(node.sql, output)
         }
-        this.currentValue = output
+        if (!isStale(request.jobId, options)) {
+          this.currentValue = output
+        }
         return {
           type: 'executePipelineResult',
           jobId: request.jobId,
@@ -76,4 +97,8 @@ export class JsonWorkerRuntime {
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled worker request: ${JSON.stringify(value)}`)
+}
+
+function isStale(jobId: string, options: HandleOptions): boolean {
+  return options.isCurrent !== undefined && !options.isCurrent(jobId)
 }

@@ -30,9 +30,13 @@ function assertJsonValue(value: unknown, path: string): asserts value is JsonVal
   }
 
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => {
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.prototype.hasOwnProperty.call(value, index)) {
+        throw new Error(`JS pipeline output must be valid JSON: ${path}[${index}] is missing`)
+      }
+      const entry = value[index]
       assertJsonValue(entry, `${path}[${index}]`)
-    })
+    }
     return
   }
 

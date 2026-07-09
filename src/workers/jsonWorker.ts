@@ -14,7 +14,7 @@ export function createLatestOnlyMessageHandler(
     latestJobId = request.jobId
 
     try {
-      const response = await workerRuntime.handle(request)
+      const response = await workerRuntime.handle(request, { isCurrent: (jobId) => jobId === latestJobId })
       if (request.jobId !== latestJobId) return
       postMessage(response)
     } catch (error) {

@@ -61,3 +61,17 @@
 - `npm test -- src/workers/jsonWorker.test.ts`
 - `npm test -- src/workers/jsExecution.test.ts`
 - `npm run typecheck`
+
+## Second re-review fix notes
+- Threaded an optional `isCurrent(jobId)` guard into `JsonWorkerRuntime.handle()` and used it to prevent stale `parseRaw` and `executePipeline` requests from committing `rawValue` or `currentValue` after a newer job supersedes them.
+- Kept the stale-job design small: `executePipeline` still computes into a local `output`, but only the current job is allowed to publish that output into runtime state; stale parse failures also avoid clearing active state.
+- Updated `src/workers/jsonWorker.ts` to pass the latest-job guard down into the runtime, so stale work is discarded both before state commit and again before `postMessage`.
+- Added focused runtime regressions in `src/workers/workerRuntime.test.ts` covering stale parse suppression and an older delayed `executePipeline` that finishes after a newer pipeline job but cannot overwrite the active `currentValue`.
+- Hardened JS output validation in `src/workers/jsExecution.ts` so sparse arrays are rejected by checking every index with `Object.prototype.hasOwnProperty.call(value, index)` before validating nested entries.
+- Added focused sparse-array coverage in `src/workers/jsExecution.test.ts` for both `Array(2)` and `[ , 1 ]`.
+
+## Second re-review verification
+- `npm test -- src/workers/workerRuntime.test.ts`
+- `npm test -- src/workers/jsonWorker.test.ts`
+- `npm test -- src/workers/jsExecution.test.ts`
+- `npm run typecheck`
