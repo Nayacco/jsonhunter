@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ProjectRepository, getRawSizeBytes, shouldPersistRawText, RAW_PERSISTENCE_LIMIT_BYTES } from './projectRepository'
+import {
+  ProjectRepository,
+  getRawSizeBytes,
+  shouldPersistRawText,
+  RAW_PERSISTENCE_LIMIT_BYTES,
+  sanitizeProjectForPersistence,
+} from './projectRepository'
 import type { ProjectRecord } from '../domain/projectTypes'
 
 const TEST_DB_NAME = `jsonhunter-project-repository-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -69,6 +75,18 @@ describe('projectRepository raw persistence rules', () => {
 })
 
 describe('ProjectRepository.saveProject', () => {
+  it('sanitizes oversize rawJsonText before persistence', () => {
+    const oversizedText = 'x'.repeat(RAW_PERSISTENCE_LIMIT_BYTES + 1)
+    const sanitizedProject = sanitizeProjectForPersistence(
+      makeProject({
+        rawSource: { type: 'file', fileName: 'large.json', sizeBytes: oversizedText.length },
+        rawJsonText: oversizedText,
+      }),
+    )
+
+    expect(sanitizedProject.rawJsonText).toBeUndefined()
+  })
+
   it('does not persist rawJsonText for URL projects', async () => {
     const repo = new ProjectRepository(TEST_DB_NAME)
     const project = makeProject({

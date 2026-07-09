@@ -23,6 +23,16 @@ export function shouldPersistRawText(source: RawSource, rawJsonText: string): bo
   return getRawSizeBytes(rawJsonText) <= RAW_PERSISTENCE_LIMIT_BYTES
 }
 
+export function sanitizeProjectForPersistence(project: ProjectRecord): ProjectRecord {
+  const { rawJsonText, ...projectWithoutRawText } = project
+  const shouldPersistRaw = shouldPersistRawText(project.rawSource, rawJsonText ?? '')
+
+  return {
+    ...projectWithoutRawText,
+    ...(shouldPersistRaw && rawJsonText !== undefined ? { rawJsonText } : {}),
+  }
+}
+
 export class ProjectRepository {
   private dbPromise: Promise<IDBPDatabase<JsonHunterDb>>
 
@@ -48,11 +58,8 @@ export class ProjectRepository {
 
   async saveProject(project: ProjectRecord): Promise<void> {
     const db = await this.dbPromise
-    const { rawJsonText, ...projectWithoutRawText } = project
-    const shouldPersistRaw = shouldPersistRawText(project.rawSource, rawJsonText ?? '')
     const persistedProject = {
-      ...projectWithoutRawText,
-      ...(shouldPersistRaw ? { rawJsonText } : {}),
+      ...sanitizeProjectForPersistence(project),
       updatedAt: Date.now(),
     }
 

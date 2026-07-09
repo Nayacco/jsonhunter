@@ -10,7 +10,7 @@ import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ProjectLauncher } from '../features/projects/ProjectLauncher'
 import { JsonViewer } from '../features/viewer/JsonViewer'
-import { ProjectRepository, getRawSizeBytes } from '../persistence/projectRepository'
+import { ProjectRepository, getRawSizeBytes, sanitizeProjectForPersistence } from '../persistence/projectRepository'
 import {
   appendNodeAfterActive,
   createInitialPipeline,
@@ -97,7 +97,10 @@ function readStoredProject(): ProjectRecord | undefined {
 }
 
 function writeStoredProject(project: ProjectRecord) {
-  globalThis.localStorage?.setItem(ACTIVE_PROJECT_STORAGE_KEY, JSON.stringify(project))
+  globalThis.localStorage?.setItem(
+    ACTIVE_PROJECT_STORAGE_KEY,
+    JSON.stringify(sanitizeProjectForPersistence(project)),
+  )
 }
 
 function getPlaceholderDetails(activeNode: PipelineNode) {

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../test/render'
@@ -13,6 +13,11 @@ vi.mock('../persistence/projectRepository', () => ({
     saveProject = saveProject
   },
   getRawSizeBytes: (rawJsonText: string) => new TextEncoder().encode(rawJsonText).byteLength,
+  sanitizeProjectForPersistence: (project: any) => {
+    const rawJsonText = project.rawJsonText as string | undefined
+    const size = new TextEncoder().encode(rawJsonText ?? '').byteLength
+    return size <= 10 * 1024 * 1024 ? project : { ...project, rawJsonText: undefined }
+  },
 }))
 
 vi.mock('@monaco-editor/react', () => ({
@@ -34,6 +39,16 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":1,"name":"Ada"}]}' },
+    })
+    await user.click(screen.getByRole('button', { name: /create from paste/i }))
+  }
+
+  async function createPasteProjectFromText(user: ReturnType<typeof userEvent.setup>, text: string) {
+    window.localStorage.clear()
+    renderWithProviders(<App />)
+
+    fireEvent.change(screen.getByLabelText(/paste json/i), {
+      target: { value: text },
     })
     await user.click(screen.getByRole('button', { name: /create from paste/i }))
   }
@@ -73,5 +88,20 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     expect(screen.getByText('Execution is not connected yet.')).toBeInTheDocument()
+  })
+
+  it('does not mirror oversized raw text into refresh storage', async () => {
+    const user = userEvent.setup()
+    const oversizedRawJson = JSON.stringify({
+      payload: 'x'.repeat(10 * 1024 * 1024 + 32),
+    })
+
+    await createPasteProjectFromText(user, oversizedRawJson)
+
+    await waitFor(() => {
+      const storedProject = window.localStorage.getItem('jsonhunter.active-project')
+      expect(storedProject).not.toBeNull()
+      expect(JSON.parse(storedProject ?? '{}').rawJsonText).toBeUndefined()
+    })
   })
 })
