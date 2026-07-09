@@ -119,8 +119,22 @@ describe('deriveViewerRowsFromJson', () => {
     expect(rows.columns.rows[0]).toMatchObject({
       label: '0',
       path: [0],
-      value: '{id, name}',
+      value: '2 fields',
     })
+  })
+
+  it('summarizes object values in columns by field count', () => {
+    const rows = deriveViewerRowsFromJson({
+      profile: { id: 1, name: 'Ada', active: true },
+      metadata: { source: 'paste' },
+      empty: {},
+    })
+
+    expect(rows.columns.rows).toEqual([
+      { label: 'profile', path: ['profile'], value: '3 fields' },
+      { label: 'metadata', path: ['metadata'], value: '1 field' },
+      { label: 'empty', path: ['empty'], value: '0 fields' },
+    ])
   })
 
   it('does not read array entries outside the visible tree window', () => {

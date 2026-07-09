@@ -183,7 +183,7 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: View
       {
         label: basePath.length === 0 ? 'value' : formatPath(basePath),
         path: basePath,
-        value: summarizeJson(value).preview,
+        value: summarizeColumnValue(value),
       },
     ])
   }
@@ -193,11 +193,20 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: View
     visibleEntries.map((entry) => ({
       label: entry.label,
       path: entry.path,
-      value: summarizeJson(entry.value).preview,
+      value: summarizeColumnValue(entry.value),
     })),
     totalCount,
     startIndex,
   )
+}
+
+function summarizeColumnValue(value: JsonValue) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const fieldCount = getChildEntryCount(value)
+    return `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'}`
+  }
+
+  return summarizeJson(value).preview
 }
 
 function createTreeWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
