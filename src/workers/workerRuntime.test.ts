@@ -47,4 +47,31 @@ describe('JsonWorkerRuntime', () => {
       value: undefined,
     })
   })
+
+  it('executes JS nodes through the selected endpoint', async () => {
+    const runtime = new JsonWorkerRuntime()
+    await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"items":[{"amount":"4"}]}' })
+    const response = await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'run-js',
+      nodes: [
+        { id: 'raw', type: 'raw', label: 'Raw' },
+        {
+          id: 'js-1',
+          type: 'js',
+          label: 'Normalize',
+          code: 'export default function transform(input) { return { items: input.items.map(item => ({ ...item, amount: Number(item.amount) })) } }',
+        },
+      ],
+    })
+
+    expect(response).toMatchObject({
+      type: 'executePipelineResult',
+      jobId: 'run-js',
+      activeNodeId: 'js-1',
+    })
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['items', 0, 'amount'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 4 })
+  })
 })

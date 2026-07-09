@@ -1,6 +1,8 @@
 import { getAtPath } from '../domain/jsonPath'
 import { summarizeJson } from '../domain/jsonSummary'
 import type { JsonValue } from '../domain/jsonTypes'
+import { executeDuckDbNode } from './duckDbExecution'
+import { executeJsNode } from './jsExecution'
 import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 
 export class JsonWorkerRuntime {
@@ -26,6 +28,23 @@ export class JsonWorkerRuntime {
           path: request.path,
           value,
           summary: summarizeJson(value),
+        }
+      }
+
+      if (request.type === 'executePipeline') {
+        let output = this.currentValue
+        if (output === undefined) throw new Error('Raw JSON is not loaded')
+        for (const node of request.nodes) {
+          if (node.type === 'raw') continue
+          if (node.type === 'js') output = await executeJsNode(node.code, output)
+          if (node.type === 'duckdb') output = await executeDuckDbNode(node.sql, output)
+        }
+        this.currentValue = output
+        return {
+          type: 'executePipelineResult',
+          jobId: request.jobId,
+          activeNodeId: request.nodes[request.nodes.length - 1]?.id ?? 'raw',
+          summary: summarizeJson(output),
         }
       }
 
