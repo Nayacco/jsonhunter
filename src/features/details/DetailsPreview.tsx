@@ -1,3 +1,10 @@
+import { Heading } from '@astryxdesign/core/Heading'
+import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
+import { Section } from '@astryxdesign/core/Section'
+import { VStack } from '@astryxdesign/core/Stack'
+import { Text } from '@astryxdesign/core/Text'
+import { Token } from '@astryxdesign/core/Token'
+
 type DetailsPreviewProps = {
   path: string
   type: string
@@ -7,37 +14,48 @@ type DetailsPreviewProps = {
 
 export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: DetailsPreviewProps) {
   return (
-    <section className="detailsPreview" aria-label="Details preview">
-      <header className="detailsPreviewHeader">
-        <h2>Details</h2>
-        <p>{path}</p>
-      </header>
+    <Section variant="transparent" padding={4}>
+      <VStack gap={4} as="section" aria-label="Details preview">
+        <VStack gap={1}>
+          <Heading level={2}>Details</Heading>
+          <Text type="supporting" display="block" wordBreak="break-word">
+            {path}
+          </Text>
+        </VStack>
 
-      <dl className="detailsPreviewFacts">
-        <dt>Type</dt>
-        <dd>{type}</dd>
-        <dt>Value</dt>
-        <dd>
-          <code>{valuePreview}</code>
-        </dd>
-        <dt>Source</dt>
-        <dd>{sourceNodeLabel}</dd>
-      </dl>
+        <MetadataList title="Selection" label={{ position: 'start', width: 88 }}>
+          <MetadataListItem label="Type">
+            <Token label={type} size="sm" color="blue" />
+          </MetadataListItem>
+          <MetadataListItem label="Value">
+            <Text type="code" wordBreak="break-word">
+              {valuePreview}
+            </Text>
+          </MetadataListItem>
+          <MetadataListItem label="Source">{sourceNodeLabel}</MetadataListItem>
+        </MetadataList>
 
-      <section className="detailsPreviewSection" aria-label="Provenance">
-        <h3>Provenance</h3>
-        <p>Derived from the currently selected pipeline node.</p>
-      </section>
+        <Section variant="transparent" padding={0}>
+          <Heading level={3}>Provenance</Heading>
+          <Text type="supporting" display="block">
+            Derived from the currently selected pipeline node.
+          </Text>
+        </Section>
 
-      <section className="detailsPreviewSection" aria-label="Comparison">
-        <h3>Comparison</h3>
-        <p>Diff appears when comparison data is available.</p>
-      </section>
+        <Section variant="transparent" padding={0}>
+          <Heading level={3}>Comparison</Heading>
+          <Text type="supporting" display="block">
+            Diff appears when comparison data is available.
+          </Text>
+        </Section>
 
-      <section className="detailsPreviewSection" aria-label="Related values">
-        <h3>Related values</h3>
-        <p>Related paths appear when indexes are available.</p>
-      </section>
-    </section>
+        <Section variant="transparent" padding={0}>
+          <Heading level={3}>Related values</Heading>
+          <Text type="supporting" display="block">
+            Related paths appear when indexes are available.
+          </Text>
+        </Section>
+      </VStack>
+    </Section>
   )
 }

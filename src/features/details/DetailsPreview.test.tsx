@@ -4,21 +4,22 @@ import { renderWithProviders } from '../../test/render'
 import { DetailsPreview } from './DetailsPreview'
 
 describe('DetailsPreview', () => {
-  it('renders selected value details', () => {
+  it('renders selected path, type, value, and source metadata', () => {
     renderWithProviders(
       <DetailsPreview
-        path="root.data[0].id"
-        type="number"
-        valuePreview="42"
-        sourceNodeLabel="Raw"
+        path="root.items.0.name"
+        type="string"
+        valuePreview='"Ada"'
+        sourceNodeLabel="JS 1"
       />,
     )
 
-    expect(screen.getByText('root.data[0].id')).toBeInTheDocument()
-    expect(screen.getByText('number')).toBeInTheDocument()
-    expect(screen.getByText('42')).toBeInTheDocument()
-    expect(screen.getByText('Source')).toBeInTheDocument()
-    expect(screen.getByText('Raw')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: /details preview/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /details/i })).toBeInTheDocument()
+    expect(screen.getByText('root.items.0.name')).toBeInTheDocument()
+    expect(screen.getByText('string')).toBeInTheDocument()
+    expect(screen.getByText('"Ada"')).toBeInTheDocument()
+    expect(screen.getByText('JS 1')).toBeInTheDocument()
     expect(screen.getByText('Derived from the currently selected pipeline node.')).toBeInTheDocument()
   })
 })
