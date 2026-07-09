@@ -90,4 +90,28 @@ describe('WorkerClient', () => {
 
     await expect(pending).rejects.toThrow('could not be decoded')
   })
+
+  it('rejects superseded requests when a newer request starts', async () => {
+    const client = createWorkerClient()
+    const requestA = { type: 'parseRaw', jobId: 'job-a', rawJsonText: '{"ok":1}' } as WorkerRequest
+    const requestB = { type: 'parseRaw', jobId: 'job-b', rawJsonText: '{"ok":2}' } as WorkerRequest
+
+    const pendingA = client.request(requestA)
+    const pendingB = client.request(requestB)
+
+    await expect(pendingA).rejects.toThrow(/superseded/i)
+
+    workers[0].dispatch('message', {
+      data: {
+        type: 'parseRawResult',
+        jobId: 'job-b',
+        summary: { type: 'object', label: 'Object(1)', childCount: 1, preview: '{ok}' },
+      },
+    })
+
+    await expect(pendingB).resolves.toMatchObject({
+      type: 'parseRawResult',
+      jobId: 'job-b',
+    })
+  })
 })

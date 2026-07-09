@@ -33,8 +33,8 @@ export class JsonWorkerRuntime {
             summary: summarizeJson(parsed),
           }
         }
-        this.rawValue = parsed
-        this.currentValue = parsed
+        this.rawValue = cloneJsonValue(parsed)
+        this.currentValue = cloneJsonValue(parsed)
         return {
           type: 'parseRawResult',
           jobId: request.jobId,
@@ -54,7 +54,7 @@ export class JsonWorkerRuntime {
       }
 
       if (request.type === 'executePipeline') {
-        let output = this.rawValue
+        let output = this.rawValue === undefined ? undefined : cloneJsonValue(this.rawValue)
         if (output === undefined) throw new Error('Raw JSON is not loaded')
         for (const node of request.nodes) {
           if (node.type === 'raw') continue
@@ -62,7 +62,7 @@ export class JsonWorkerRuntime {
           if (node.type === 'duckdb') output = await executeDuckDbNode(node.sql, output)
         }
         if (!isStale(request.jobId, options)) {
-          this.currentValue = output
+          this.currentValue = cloneJsonValue(output)
         }
         return {
           type: 'executePipelineResult',
@@ -101,4 +101,8 @@ function assertNever(value: never): never {
 
 function isStale(jobId: string, options: HandleOptions): boolean {
   return options.isCurrent !== undefined && !options.isCurrent(jobId)
+}
+
+function cloneJsonValue<T extends JsonValue>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
 }

@@ -75,7 +75,7 @@ describe('JsonWorkerRuntime', () => {
     expect(details).toMatchObject({ type: 'detailsResult', value: 4 })
   })
 
-  it('restarts each pipeline run from immutable raw JSON', async () => {
+  it('restarts each pipeline run from immutable raw JSON even when JS mutates input in place', async () => {
     const runtime = new JsonWorkerRuntime()
     await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })
 
@@ -83,7 +83,7 @@ describe('JsonWorkerRuntime', () => {
       id: 'js-1',
       type: 'js' as const,
       label: 'Increment',
-      code: 'export default function transform(input) { return { count: input.count + 1 } }',
+      code: 'export default function transform(input) { input.count += 1; return input }',
     }
 
     const first = await runtime.handle({

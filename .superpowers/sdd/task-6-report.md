@@ -75,3 +75,17 @@
 - `npm test -- src/workers/jsonWorker.test.ts`
 - `npm test -- src/workers/jsExecution.test.ts`
 - `npm run typecheck`
+
+## Third re-review fix notes
+- Fixed raw immutability in `src/workers/workerRuntime.ts` by deep-cloning parsed JSON into separate `rawValue` and `currentValue` slots during `parseRaw`, so the raw and active state no longer alias the same object graph.
+- Hardened the pipeline entry boundary in `src/workers/workerRuntime.ts` so every `executePipeline` run starts from a deep clone of `rawValue`, which keeps user JS from mutating the stored raw snapshot in place; committed pipeline output is also cloned before becoming the new active value.
+- Updated the runtime regression in `src/workers/workerRuntime.test.ts` to use an in-place mutating transform (`input.count += 1; return input`) and verified that running the same pipeline twice still leaves details at `2` instead of drifting to `3`.
+- Fixed `src/workers/workerClient.ts` so a new `request()` rejects any older pending promises immediately with a superseded error, matching the worker's latest-only execution model instead of leaving stale callers hanging forever.
+- Added focused client coverage in `src/workers/workerClient.test.ts` that starts request A, then request B, verifies A rejects with a superseded error, and confirms B still resolves from the worker response.
+
+## Third re-review verification
+- `npm test -- src/workers/workerRuntime.test.ts`
+- `npm test -- src/workers/workerClient.test.ts`
+- `npm test -- src/workers/jsonWorker.test.ts`
+- `npm test -- src/workers/jsExecution.test.ts`
+- `npm run typecheck`

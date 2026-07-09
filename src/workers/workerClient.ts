@@ -35,9 +35,18 @@ export function createWorkerClient(): WorkerClient {
     rejectAllPending(new Error('Worker message could not be decoded'))
   })
 
+  const rejectSupersededPending = (nextJobId: string): void => {
+    const superseded = Array.from(pending.entries()).filter(([jobId]) => jobId !== nextJobId)
+    superseded.forEach(([jobId, entry]) => {
+      pending.delete(jobId)
+      entry.reject(new Error(`Worker request ${jobId} was superseded by ${nextJobId}`))
+    })
+  }
+
   return {
     request(request) {
       return new Promise((resolve, reject) => {
+        rejectSupersededPending(request.jobId)
         pending.set(request.jobId, { resolve, reject })
         worker.postMessage(request)
       })
