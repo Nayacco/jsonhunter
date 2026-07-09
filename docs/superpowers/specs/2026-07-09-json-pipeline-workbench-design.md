@@ -15,7 +15,7 @@ The first version supports:
 - Pipeline processing nodes of type `JS` and `DuckDB`.
 - Future extension points for additional node types.
 - Left/right main layout with pipeline and JSON browsing on the left, details preview on the right.
-- Three JSON result views: columns, tree, and readonly source.
+- Four JSON result views: columns, tree, table, and readonly source.
 - Node execution to the currently selected pipeline node only.
 - Safe temporary preview via `Run`; saved pipeline updates only via `Save`.
 - Non-destructive error handling that preserves the last successful output.
@@ -104,16 +104,17 @@ The implementation uses `@duckdb/duckdb-wasm` in a Worker. Query results are con
 
 The left-bottom result area shows the output for the active pipeline endpoint or the current temporary preview.
 
-It supports three switchable views:
+It supports four switchable views:
 
 - Columns view.
 - Tree view.
+- Table view.
 - Readonly source view.
 
 The view switcher sits to the left of the breadcrumb, for example:
 
 ```text
-[Columns] [Tree] [Source] root / data / items / 0
+[Columns] [Tree] [Table] [Source] root / data / items / 0
 ```
 
 All views share:
@@ -124,6 +125,17 @@ All views share:
 - Copy and path actions.
 
 Switching views should preserve the selected JSON node whenever possible.
+
+Table view presents JSON as a tabular grid when the active output or selected node is table-like.
+
+Recommended mapping rules:
+
+- Array of objects: each item is a row; object keys become columns. Nested objects and arrays show compact summaries with drill-in actions.
+- Array of primitives: render `index` and `value` columns.
+- Object: render key-value rows with `key`, `type`, and `value` columns.
+- Scalar: render a single-row table with `path`, `type`, and `value`.
+
+Table view is still a JSON viewer, not an editor. Selecting a row or cell updates the shared selected JSON path and drives the details preview.
 
 ## Details Preview
 
@@ -207,12 +219,13 @@ The app uses:
 - `@astryxdesign/core` as the preferred UI component system.
 - Zustand for frontend state management.
 - IndexedDB through a light wrapper such as `idb`.
-- TanStack Virtual for virtualized list, column, tree, and source rendering.
+- TanStack Virtual for virtualized list, column, tree, table, and source rendering.
+- TanStack Table for table state and data-grid behavior when Astryx does not provide the needed table logic.
 - Monaco Editor only for JS and DuckDB SQL node editors.
 - `@duckdb/duckdb-wasm` for DuckDB execution.
 - Vitest, React Testing Library, and Playwright for tests.
 
-Astryx is the first choice for UI primitives. If a required UI or behavior is not available in Astryx, prefer TanStack libraries where they fit the domain, such as TanStack Virtual. If neither Astryx nor TanStack covers a need, evaluate mature mainstream libraries before building from scratch.
+Astryx is the first choice for UI primitives. If a required UI or behavior is not available in Astryx, prefer TanStack libraries where they fit the domain, such as TanStack Virtual for virtualization and TanStack Table for headless table state. If neither Astryx nor TanStack covers a need, evaluate mature mainstream libraries before building from scratch.
 
 Zustand should be organized into focused slices:
 
@@ -267,6 +280,8 @@ Columns view virtualizes rows inside each visible column.
 
 Tree view flattens expanded visible nodes into a list and virtualizes that list.
 
+Table view uses table-like row and column models over JSON data. It should prefer Astryx visual components for table markup and controls. If Astryx does not provide the needed behavior, use TanStack Table for headless table state and TanStack Virtual for row and column virtualization.
+
 Source view generates visible source lines or chunks on demand and virtualizes those rows. It must not require full pretty-printed JSON text to be stored in React state.
 
 Search, path lookup, related values, and source-line navigation should ask the Worker for indexes or targeted results. The UI should keep lightweight references, summaries, and visible windows rather than full large JSON text or full flattened structures.
@@ -282,7 +297,7 @@ Recommended component boundaries:
 - `PipelineExecutor`: coordinates Worker jobs that run JS and DuckDB nodes up to a selected endpoint.
 - `PipelineFlow`: compact node chain, selection, add-node controls, node states.
 - `NodeEditor`: lazy Monaco JS or DuckDB editor, Run and Save controls, draft output state.
-- `JsonViewer`: columns, tree, and source modes over a shared selection model.
+- `JsonViewer`: columns, tree, table, and source modes over a shared selection model.
 - `DetailsPreview`: selected value, path, provenance, diff, and related values.
 - `ErrorBanner`: execution error summary and expanded diagnostics.
 
@@ -301,11 +316,11 @@ Each unit should have a narrow interface so execution logic, persistence, and re
 
 ## Testing Strategy
 
-Test the system at three levels:
+Test the system at several levels:
 
 - Pipeline model tests for node selection, inactive downstream nodes, invalidation, and `Raw` rollback.
 - Executor tests for JS transform behavior, DuckDB `input` mapping, JSON-serializable outputs, and error propagation.
-- UI integration tests for Run versus Save, view switching with preserved path, error banner behavior, and IndexedDB restore after refresh.
+- UI integration tests for Run versus Save, view switching with preserved path, table view mappings, error banner behavior, and IndexedDB restore after refresh.
 - Worker protocol tests for `jobId` invalidation, cancellation, stale result dropping, and unavailable Raw restoration.
 - Persistence tests for URL, File, and Paste source rules, including the `10 MiB` Raw persistence threshold.
 
