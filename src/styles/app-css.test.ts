@@ -15,4 +15,9 @@ describe('app.css', () => {
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}/)
     expect(css).not.toMatch(/rgba?\(/)
   })
+
+  it('limits column row values so keys remain visible', () => {
+    expect(css).toMatch(/\.json-columnValue\s*\{[^}]*max-width:\s*calc\(var\(--spacing-12\) \* 3\)/s)
+    expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)
+  })
 })

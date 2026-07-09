@@ -71,7 +71,7 @@ export function ColumnsView({ columns, selectedPath, onSelectPath, onColumnWindo
                         <Item
                           label={row.label}
                           endContent={
-                            <Text type="supporting" display="block" maxLines={1}>
+                            <Text type="supporting" display="block" maxLines={1} className="json-columnValue">
                               {row.value ?? index + 1}
                             </Text>
                           }

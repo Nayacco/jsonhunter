@@ -37,3 +37,10 @@ body,
   border-radius: var(--radius-none);
   background: transparent;
 }
+
+.json-columnValue {
+  max-width: calc(var(--spacing-12) * 3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

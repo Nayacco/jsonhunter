@@ -54,4 +54,29 @@ describe('ColumnsView', () => {
     expect(row).toHaveAttribute('data-description', '')
     expect(screen.getByTestId('column-row-end-content')).toHaveTextContent('[1 items]')
   })
+
+  it('marks row values for width-limited truncation', () => {
+    const longValue = 'a-very-long-value-that-should-not-hide-the-row-key'
+
+    renderWithProviders(
+      <ColumnsView
+        selectedPath={[]}
+        columns={[
+          {
+            id: 'root',
+            title: 'root',
+            path: [],
+            rows: {
+              startIndex: 0,
+              totalCount: 1,
+              rows: [{ label: 'importantKey', value: longValue, path: ['importantKey'] }],
+            },
+          },
+        ]}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    expect(screen.getByText(longValue)).toHaveClass('json-columnValue')
+  })
 })

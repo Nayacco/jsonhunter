@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { AppShell as AstryxAppShell } from '@astryxdesign/core/AppShell'
 import { Layout, LayoutContent, LayoutHeader, LayoutPanel } from '@astryxdesign/core/Layout'
+import { ResizeHandle, useResizable } from '@astryxdesign/core/Resizable'
 
 type AppShellProps = {
   pipeline: ReactNode
@@ -9,6 +10,13 @@ type AppShellProps = {
 }
 
 export function AppShell({ pipeline, viewer, details }: AppShellProps) {
+  const detailsPanel = useResizable({
+    defaultSize: 360,
+    minSizePx: 280,
+    maxSizePx: 640,
+    autoSaveId: 'jsonhunter-details-panel',
+  })
+
   return (
     <AstryxAppShell>
       <Layout
@@ -27,9 +35,17 @@ export function AppShell({ pipeline, viewer, details }: AppShellProps) {
           />
         }
         end={
-          <LayoutPanel role="complementary" label="Details" hasDivider>
-            {details}
-          </LayoutPanel>
+          <>
+            <ResizeHandle
+              resizable={detailsPanel.props}
+              isReversed
+              hasDivider
+              label="Resize details panel"
+            />
+            <LayoutPanel role="complementary" label="Details" resizable={detailsPanel.props} padding={4}>
+              {details}
+            </LayoutPanel>
+          </>
         }
       />
     </AstryxAppShell>
