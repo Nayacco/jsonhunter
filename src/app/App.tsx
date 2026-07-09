@@ -5,7 +5,13 @@ import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ProjectLauncher } from '../features/projects/ProjectLauncher'
 import type { PipelineNode, PipelineNodeType, ProcessingNode } from '../domain/pipelineTypes'
-import { appendNodeAfterActive, createInitialPipeline, selectActiveNode, type PipelineState } from '../pipeline/pipelineModel'
+import {
+  appendNodeAfterActive,
+  createInitialPipeline,
+  markDownstreamStale,
+  selectActiveNode,
+  type PipelineState,
+} from '../pipeline/pipelineModel'
 
 function createDemoPipeline(): PipelineState {
   let state = createInitialPipeline()
@@ -80,21 +86,28 @@ export function App() {
   }
 
   function handleSave() {
-    setPipeline((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) => {
-        if (node.id !== current.activeNodeId) return node
-        return node.type === 'js'
-          ? {
-              ...node,
-              code: editorValue,
-            }
-          : {
-              ...node,
-              sql: editorValue,
-            }
-      }),
-    }))
+    if (activeNode.type === 'raw') return
+
+    setPipeline((current) =>
+      markDownstreamStale(
+        {
+          ...current,
+          nodes: current.nodes.map((node) => {
+            if (node.id !== current.activeNodeId) return node
+            return node.type === 'js'
+              ? {
+                  ...node,
+                  code: editorValue,
+                }
+              : {
+                  ...node,
+                  sql: editorValue,
+                }
+          }),
+        },
+        current.activeNodeId,
+      ),
+    )
     setError(undefined)
   }
 
@@ -121,14 +134,16 @@ export function App() {
       viewer={
         <div className="editorPane">
           <ErrorBanner message={error} />
-          <NodeEditor
-            language={language}
-            value={editorValue}
-            onChange={setEditorValue}
-            onRun={handleRun}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
+          {activeNode.type === 'raw' ? null : (
+            <NodeEditor
+              language={language}
+              value={editorValue}
+              onChange={setEditorValue}
+              onRun={handleRun}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
+          )}
         </div>
       }
       details={<ProjectLauncher onPasteJson={() => {}} onLoadUrl={() => {}} onOpenFile={() => {}} />}
