@@ -1,4 +1,11 @@
 import { useState } from 'react'
+import { Button } from '@astryxdesign/core/Button'
+import { FileInput } from '@astryxdesign/core/FileInput'
+import { Heading } from '@astryxdesign/core/Heading'
+import { Section } from '@astryxdesign/core/Section'
+import { VStack } from '@astryxdesign/core/Stack'
+import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextInput } from '@astryxdesign/core/TextInput'
 
 type ProjectLauncherProps = {
   onPasteJson(text: string): void
@@ -9,44 +16,38 @@ type ProjectLauncherProps = {
 export function ProjectLauncher({ onPasteJson, onLoadUrl, onOpenFile }: ProjectLauncherProps) {
   const [pasteText, setPasteText] = useState('')
   const [url, setUrl] = useState('')
+  const [file, setFile] = useState<File | null>(null)
 
   return (
-    <section className="launcher">
-      <h1>JSON Hunter</h1>
-
-      <label className="field">
-        <span>Paste JSON</span>
-        <textarea value={pasteText} onChange={(event) => setPasteText(event.target.value)} />
-      </label>
-
-      <button type="button" onClick={() => onPasteJson(pasteText)}>
-        Create from paste
-      </button>
-
-      <label className="field">
-        <span>JSON URL</span>
-        <input
+    <Section variant="transparent" padding={6}>
+      <VStack gap={4}>
+        <Heading level={1}>JSON Hunter</Heading>
+        <TextArea
+          label="Paste JSON"
+          value={pasteText}
+          onChange={setPasteText}
+          rows={8}
+          hasSpellCheck={false}
+        />
+        <Button label="Create from paste" variant="primary" onClick={() => onPasteJson(pasteText)} />
+        <TextInput
+          label="JSON URL"
           value={url}
-          onChange={(event) => setUrl(event.target.value)}
+          onChange={setUrl}
           placeholder="https://example.com/data.json"
         />
-      </label>
-
-      <button type="button" onClick={() => onLoadUrl(url)}>
-        Load URL
-      </button>
-
-      <label className="field">
-        <span>Open file</span>
-        <input
-          type="file"
+        <Button label="Load URL" onClick={() => onLoadUrl(url)} />
+        <FileInput
+          label="Open file"
+          value={file}
           accept="application/json,.json"
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0]
-            if (file) onOpenFile(file)
+          onChange={(nextFile) => {
+            const selectedFile = Array.isArray(nextFile) ? nextFile[0] : nextFile
+            setFile(selectedFile ?? null)
+            if (selectedFile) onOpenFile(selectedFile)
           }}
         />
-      </label>
-    </section>
+      </VStack>
+    </Section>
   )
 }
