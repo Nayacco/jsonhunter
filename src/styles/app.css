@@ -19,6 +19,70 @@ body,
   border-top: var(--border-width) solid var(--color-border);
 }
 
+.json-treeRow {
+  min-height: var(--size-element-md);
+  padding-inline-end: var(--spacing-2);
+}
+
+.json-treeKey {
+  flex: 0 0 calc(var(--spacing-12) * 5);
+  min-width: calc(var(--spacing-12) * 3);
+  max-width: calc(var(--spacing-12) * 7);
+  padding-inline-start: var(--spacing-1);
+  overflow: hidden;
+}
+
+.json-treeValue {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.json-treeGuides {
+  --json-tree-indent: calc(var(--size-element-sm) / 2 + var(--spacing-1));
+  --json-tree-guide-color: var(--color-border-emphasized);
+  --json-tree-guide-gap: var(--spacing-2);
+
+  align-self: stretch;
+  flex: 0 0 var(--json-tree-guide-width);
+  min-width: 0;
+  min-height: var(--size-element-md);
+  position: relative;
+}
+
+.json-treeGuides::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--json-tree-guide-gap);
+  inset-inline: 0;
+  background-image: linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(100% - var(--border-width)),
+    var(--json-tree-guide-color) calc(100% - var(--border-width)),
+    var(--json-tree-guide-color) 100%
+  );
+  background-repeat: repeat-x;
+  background-size: var(--json-tree-indent) 100%;
+}
+
+.json-treeGuides[data-depth='0'] {
+  display: none;
+}
+
+.json-treeGuides[data-has-guides='true']::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 100%;
+  width: var(--spacing-2);
+  border-block-start: var(--border-width) solid var(--json-tree-guide-color);
+}
+
+.json-treeDisclosureSpacer {
+  flex: 0 0 var(--size-element-sm);
+  width: var(--size-element-sm);
+}
+
 .json-columnBrowser {
   overflow-x: auto;
   background: var(--color-background-surface);

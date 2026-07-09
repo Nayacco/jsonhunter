@@ -6,6 +6,8 @@ export type ViewerRow = {
   label: string
   path: JsonPath
   value?: string
+  depth?: number
+  hasChildren?: boolean
 }
 
 export type ViewerRowWindow = {
@@ -115,9 +117,9 @@ export function deriveViewerRowsFromJson(
 
   return {
     columns: createColumnsWindow(value, selectedPath, windows.columns),
-    tree: createTreeWindow(value, selectedPath, windows.tree),
+    tree: createTreeWindow(rawValue, []),
     table: createTableWindow(value, selectedPath, windows.table),
-    source: createSourceWindow(value, selectedPath, windows.source),
+    source: createSourceWindow(rawValue, [], windows.source),
   }
 }
 
@@ -209,33 +211,42 @@ function summarizeColumnValue(value: JsonValue) {
   return summarizeJson(value).preview
 }
 
-function createTreeWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
-  const { startIndex, count } = normalizeWindow(window)
-  const childCountTotal = getChildEntryCount(value)
-  const rootLabel = basePath.length === 0 ? 'root' : formatPath(['root', ...basePath])
-  const totalCount = childCountTotal + 1
+function createTreeWindow(value: JsonValue, basePath: JsonPath) {
   const rows: ViewerRow[] = []
 
-  if (startIndex === 0 && count > 0) {
+  function emit(currentValue: JsonValue, path: JsonPath) {
+    const isRoot = path.length === basePath.length
     rows.push({
-      label: rootLabel,
-      path: basePath,
-      value: summarizeJson(value).label,
+      label: isRoot ? 'root' : String(path[path.length - 1]),
+      path,
+      value: summarizeColumnValue(currentValue),
+      depth: path.length - basePath.length,
+      hasChildren: getChildEntryCount(currentValue) > 0,
     })
   }
 
-  const childStart = Math.max(startIndex - 1, 0)
-  const childCount = startIndex === 0 ? Math.max(count - 1, 0) : count
-  const visibleEntries = getChildEntryWindow(value, basePath, childStart, childCount)
-  rows.push(
-    ...visibleEntries.map((entry) => ({
-      label: formatPath(['root', ...entry.path]),
-      path: entry.path,
-      value: summarizeJson(entry.value).preview,
-    })),
-  )
+  function visit(currentValue: JsonValue, path: JsonPath) {
+    emit(currentValue, path)
 
-  return createViewerRowWindow(rows, totalCount, startIndex)
+    if (Array.isArray(currentValue)) {
+      for (let index = 0; index < currentValue.length; index += 1) {
+        visit(currentValue[index], appendPath(path, index))
+      }
+      return
+    }
+
+    if (currentValue && typeof currentValue === 'object') {
+      for (const key in currentValue) {
+        if (Object.prototype.hasOwnProperty.call(currentValue, key)) {
+          visit(currentValue[key], appendPath(path, key))
+        }
+      }
+    }
+  }
+
+  visit(value, basePath)
+
+  return createViewerRowWindow(rows)
 }
 
 function createTableWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
@@ -258,12 +269,9 @@ function createTableWindow(value: JsonValue, basePath: JsonPath, window?: Viewer
 
 function createSourceWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
   const { startIndex, count } = normalizeWindow(window)
-  const source = getSourceLineSource(value, basePath)
-  const rows = Array.from({ length: Math.max(Math.min(count, source.totalCount - startIndex), 0) }, (_, offset) =>
-    source.getRow(startIndex + offset),
-  )
+  const source = getSourceLineSource(value, basePath, startIndex, count)
 
-  return createViewerRowWindow(rows, source.totalCount, startIndex)
+  return createViewerRowWindow(source.rows, source.totalCount, startIndex)
 }
 
 type ViewerTableSource = {
@@ -364,61 +372,110 @@ function getTableRowLabel(value: JsonValue, index: number) {
 
 type SourceLineSource = {
   totalCount: number
-  getRow(index: number): ViewerRow
+  rows: ViewerRow[]
 }
 
-function getSourceLineSource(value: JsonValue, basePath: JsonPath): SourceLineSource {
-  const tableSource = getTableSource(value, basePath)
-  if (tableSource) {
-    return {
-      totalCount: tableSource.value.length + 2,
-      getRow(index) {
-        if (index === 0) return { label: '{', path: basePath }
-        if (index === tableSource.value.length + 1) return { label: '}', path: basePath }
-        const itemIndex = index - 1
-        return {
-          label: JSON.stringify(tableSource.value[itemIndex]),
-          path: appendPath(tableSource.path, itemIndex),
-        }
-      },
-    }
+function getSourceLineSource(
+  value: JsonValue,
+  basePath: JsonPath,
+  startIndex: number,
+  count: number,
+): SourceLineSource {
+  const rows: ViewerRow[] = []
+  const endIndex = startIndex + count
+  let currentIndex = 0
+
+  function emit(row: ViewerRow) {
+    if (currentIndex >= startIndex && currentIndex < endIndex) rows.push(row)
+    currentIndex += 1
   }
 
+  appendSourceValueRows({ emit }, value, basePath, 0, false)
+
+  return {
+    totalCount: currentIndex,
+    rows,
+  }
+}
+
+type SourceRowContext = {
+  emit(row: ViewerRow): void
+}
+
+function appendSourceValueRows(
+  context: SourceRowContext,
+  value: JsonValue,
+  path: JsonPath,
+  depth: number,
+  hasTrailingComma: boolean,
+) {
+  const comma = hasTrailingComma ? ',' : ''
+  const indent = '  '.repeat(depth)
+
   if (Array.isArray(value)) {
-    return {
-      totalCount: value.length,
-      getRow(index) {
-        return {
-          label: JSON.stringify(value[index]),
-          path: appendPath(basePath, index),
-        }
-      },
-    }
+    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, `${indent}[`)
+    return
   }
 
   if (value && typeof value === 'object') {
     const entries = Object.entries(value)
-    return {
-      totalCount: entries.length + 2,
-      getRow(index) {
-        if (index === 0) return { label: '{', path: basePath }
-        if (index === entries.length + 1) return { label: '}', path: basePath }
-        const [key, entry] = entries[index - 1]
-        return {
-          label: `${JSON.stringify(key)}: ${JSON.stringify(entry)}`,
-          path: appendPath(basePath, key),
-        }
-      },
-    }
+    context.emit({ label: `${indent}{`, path })
+    entries.forEach(([key, entry], index) => {
+      appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
+    })
+    context.emit({ label: `${indent}}${comma}`, path })
+    return
   }
 
-  return {
-    totalCount: 1,
-    getRow() {
-      return {
-        label: JSON.stringify(value),
-        path: basePath,
-      }
-    },
+  context.emit({ label: `${indent}${JSON.stringify(value)}${comma}`, path })
+}
+
+function appendSourcePropertyRows(
+  context: SourceRowContext,
+  label: string,
+  value: JsonValue,
+  path: JsonPath,
+  depth: number,
+  hasTrailingComma: boolean,
+) {
+  const comma = hasTrailingComma ? ',' : ''
+  const indent = '  '.repeat(depth)
+  const propertyLabel = `${JSON.stringify(label)}: `
+
+  if (Array.isArray(value)) {
+    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, `${indent}${propertyLabel}[`)
+    return
   }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+    context.emit({ label: `${indent}${propertyLabel}{`, path })
+    entries.forEach(([key, entry], index) => {
+      appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
+    })
+    context.emit({ label: `${indent}}${comma}`, path })
+    return
+  }
+
+  context.emit({ label: `${indent}${propertyLabel}${JSON.stringify(value)}${comma}`, path })
+}
+
+function appendSourceArrayRows(
+  context: SourceRowContext,
+  value: JsonValue[],
+  path: JsonPath,
+  depth: number,
+  hasTrailingComma: boolean,
+  openingLabel: string,
+) {
+  const comma = hasTrailingComma ? ',' : ''
+  const indent = '  '.repeat(depth)
+
+  context.emit({ label: openingLabel, path })
+
+  value.forEach((entry, index) => {
+    appendSourceValueRows(context, entry, appendPath(path, index), depth + 1, index < value.length - 1)
+  })
+
+  context.emit({ label: `${indent}]${comma}`, path })
 }

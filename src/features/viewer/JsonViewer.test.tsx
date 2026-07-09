@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { renderWithProviders } from '../../test/render'
 import { JsonViewer } from './JsonViewer'
-import { deriveColumnViewFromJson } from './viewerRows'
+import { deriveColumnViewFromJson, deriveViewerRowsFromJson } from './viewerRows'
 
 type MockVirtualItem = {
   index: number
@@ -221,6 +221,148 @@ describe('JsonViewer', () => {
     expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Index 0 column' })).toBeInTheDocument()
+  })
+
+  it('keeps tree view anchored to the full JSON after selecting a row', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ id: '121', entities: { annotations: [] } }],
+      meta: { source: 'fixture' },
+    }
+
+    function Harness() {
+      const [selectedPath, setSelectedPath] = useState<(string | number)[]>([])
+
+      return (
+        <JsonViewer
+          mode="tree"
+          selectedPath={selectedPath}
+          rows={deriveViewerRowsFromJson(rawValue, selectedPath, { tree: { startIndex: 0, count: 24 } })}
+          onModeChange={() => {}}
+          onSelectPath={setSelectedPath}
+        />
+      )
+    }
+
+    renderWithProviders(<Harness />)
+
+    const rootDataRow = screen.getByText('data').closest('.json-treeRow')
+    expect(rootDataRow).toBeInTheDocument()
+    await user.click(rootDataRow!)
+
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/data')
+    expect(screen.getByRole('button', { name: /^meta 1 field/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^entities 1 field/i })).toBeInTheDocument()
+  })
+
+  it('budgets virtual row height for single-line tree table rows', () => {
+    renderWithProviders(
+      <JsonViewer
+        mode="tree"
+        selectedPath={[]}
+        rows={{
+          tree: {
+            startIndex: 0,
+            totalCount: 2,
+            rows: [
+              { label: 'root', value: 'Array(1)', path: [] },
+              { label: 'root[0]', value: '{id, text}', path: [0] },
+            ],
+          },
+        }}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    const scrollContent = screen.getByRole('region', { name: 'Tree view' }).querySelector('.virtualScroll > div')
+
+    expect(scrollContent).toHaveStyle({ height: '64px' })
+  })
+
+  it('renders tree rows as key and value columns with collapsible branches', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ id: '121', entities: { urls: [] } }],
+      meta: { source: 'fixture' },
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="tree"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { tree: { startIndex: 0, count: 32 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    const dataRow = screen.getByText('data').closest('.json-treeRow')
+    expect(dataRow).toHaveTextContent('[1 items]')
+    expect(screen.getByRole('button', { name: 'Collapse data' })).toBeInTheDocument()
+    expect(screen.getByText('entities')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+    expect(screen.queryByText('entities')).not.toBeInTheDocument()
+    expect(screen.getByText('meta')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Expand data' }))
+    expect(screen.getByText('entities')).toBeInTheDocument()
+  })
+
+  it('renders tree branch guide rails for nested rows', () => {
+    const rawValue = {
+      data: [{ id: '121' }],
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="tree"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { tree: { startIndex: 0, count: 12 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    const idRow = screen.getByText('id').closest('.json-treeRow')
+    const idGuides = idRow?.querySelector('.json-treeGuides')
+
+    expect(idGuides).toHaveAttribute('data-depth', '3')
+    expect(idGuides).toHaveStyle({ '--json-tree-depth': '3' })
+    expect(idGuides).toHaveStyle({
+      '--json-tree-guide-width': 'calc(var(--json-tree-indent) + var(--json-tree-indent) + var(--json-tree-indent))',
+    })
+  })
+
+  it('keeps source view anchored to the full JSON after selecting a row', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ id: '121' }],
+      meta: { source: 'fixture' },
+    }
+
+    function Harness() {
+      const [selectedPath, setSelectedPath] = useState<(string | number)[]>([])
+
+      return (
+        <JsonViewer
+          mode="source"
+          selectedPath={selectedPath}
+          rows={deriveViewerRowsFromJson(rawValue, selectedPath, { source: { startIndex: 0, count: 24 } })}
+          onModeChange={() => {}}
+          onSelectPath={setSelectedPath}
+        />
+      )
+    }
+
+    renderWithProviders(<Harness />)
+
+    await user.click(screen.getByRole('button', { name: /"data": \[/i }))
+
+    expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/data')
+    expect(screen.getByRole('button', { name: /"meta": \{/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /"source": "fixture"/i })).toBeInTheDocument()
   })
 
   it('does not render every row when virtual items are unavailable for a large count', () => {

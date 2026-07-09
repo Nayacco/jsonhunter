@@ -64,6 +64,73 @@ describe('deriveViewerRowsFromJson', () => {
     })
   })
 
+  it('keeps tree and source windows anchored to the full JSON when a path is selected', () => {
+    const rawValue = {
+      rows: [
+        {
+          nested: {
+            values: [{ name: 'leaf-0' }],
+          },
+        },
+      ],
+      meta: {
+        version: 1,
+      },
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, ['rows', 0, 'nested', 'values'], {
+      source: { startIndex: 0, count: 32 },
+    })
+
+    expect(rows.columns.rows[0]).toMatchObject({
+      label: '0',
+      path: ['rows', 0, 'nested', 'values', 0],
+    })
+    expect(rows.tree.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'meta', path: ['meta'], depth: 1 }),
+        expect.objectContaining({ label: 'name', path: ['rows', 0, 'nested', 'values', 0, 'name'], depth: 6 }),
+      ]),
+    )
+    expect(rows.source.rows.map((row) => row.label).join('\n')).toContain('"meta": {')
+    expect(rows.source.rows.map((row) => row.label).join('\n')).toContain('"version": 1')
+  })
+
+  it('derives tree rows as a fully expanded hierarchy of node names', () => {
+    const rows = deriveViewerRowsFromJson({
+      data: [
+        {
+          id: '121',
+          entities: {
+            urls: [{ expanded_url: 'https://example.com' }],
+          },
+        },
+      ],
+      meta: { source: 'fixture' },
+    }, [], {
+      tree: { startIndex: 0, count: 32 },
+    })
+
+    expect(rows.tree.rows).toEqual([
+      { label: 'root', path: [], value: '2 fields', depth: 0, hasChildren: true },
+      { label: 'data', path: ['data'], value: '[1 items]', depth: 1, hasChildren: true },
+      { label: '0', path: ['data', 0], value: '2 fields', depth: 2, hasChildren: true },
+      { label: 'id', path: ['data', 0, 'id'], value: '"121"', depth: 3, hasChildren: false },
+      { label: 'entities', path: ['data', 0, 'entities'], value: '1 field', depth: 3, hasChildren: true },
+      { label: 'urls', path: ['data', 0, 'entities', 'urls'], value: '[1 items]', depth: 4, hasChildren: true },
+      { label: '0', path: ['data', 0, 'entities', 'urls', 0], value: '1 field', depth: 5, hasChildren: true },
+      {
+        label: 'expanded_url',
+        path: ['data', 0, 'entities', 'urls', 0, 'expanded_url'],
+        value: '"https://example.com"',
+        depth: 6,
+        hasChildren: false,
+      },
+      { label: 'meta', path: ['meta'], value: '1 field', depth: 1, hasChildren: true },
+      { label: 'source', path: ['meta', 'source'], value: '"fixture"', depth: 2, hasChildren: false },
+    ])
+  })
+
   it('derives a lower table window by visible index instead of permanent placeholders', () => {
     const rawValue = {
       rows: Array.from({ length: 5000 }, (_, index) => ({
@@ -89,34 +156,42 @@ describe('deriveViewerRowsFromJson', () => {
     })
   })
 
-  it('keeps source windows bounded without stringifying every item', () => {
+  it('renders source rows as fully expanded pretty JSON', () => {
     const rawValue = {
-      rows: Array.from({ length: 5000 }, (_, index) => ({
-        id: index,
-        name: `row-${index}`,
-      })),
+      rows: [
+        {
+          id: 1,
+          name: 'row-1',
+        },
+      ],
     }
 
     const rows = deriveViewerRowsFromJson(rawValue, [], {
-      source: { startIndex: 4998, count: 4 },
+      source: { startIndex: 0, count: 16 },
     })
 
-    expect(rows.source.totalCount).toBe(5002)
-    expect(rows.source.startIndex).toBe(4998)
-    expect(rows.source.rows.map((row) => row.label).join('\n')).toContain('row-4997')
-    expect(rows.source.rows.map((row) => row.label).join('\n')).not.toContain('row-0')
+    expect(rows.source.rows.map((row) => row.label)).toEqual([
+      '{',
+      '  "rows": [',
+      '    {',
+      '      "id": 1,',
+      '      "name": "row-1"',
+      '    }',
+      '  ]',
+      '}',
+    ])
   })
 
   it('does not read array entries outside the visible columns window', () => {
     const rawValue = createWindowedArrayWithGuardedTail()
 
-    const rows = deriveViewerRowsFromJson(rawValue, [], {
-      columns: { startIndex: 0, count: 8 },
-    })
+    const columns = deriveColumnViewFromJson(rawValue, [], {
+      root: { startIndex: 0, count: 8 },
+    }).at(0)?.rows
 
-    expect(rows.columns.totalCount).toBe(5000)
-    expect(rows.columns.rows).toHaveLength(8)
-    expect(rows.columns.rows[0]).toMatchObject({
+    expect(columns?.totalCount).toBe(5000)
+    expect(columns?.rows).toHaveLength(8)
+    expect(columns?.rows[0]).toMatchObject({
       label: '0',
       path: [0],
       value: '2 fields',
@@ -137,24 +212,41 @@ describe('deriveViewerRowsFromJson', () => {
     ])
   })
 
-  it('does not read array entries outside the visible tree window', () => {
-    const rawValue = createWindowedArrayWithGuardedTail()
+  it('fully expands tree rows for array entries in the requested window', () => {
+    const rawValue = Array.from({ length: 3 }, (_, index) => ({
+      id: index,
+      name: `row-${index}`,
+    }))
 
     const rows = deriveViewerRowsFromJson(rawValue, [], {
-      tree: { startIndex: 0, count: 8 },
+      tree: { startIndex: 0, count: 10 },
     })
 
-    expect(rows.tree.totalCount).toBe(5001)
-    expect(rows.tree.rows).toHaveLength(8)
+    expect(rows.tree.totalCount).toBe(10)
+    expect(rows.tree.rows).toHaveLength(10)
     expect(rows.tree.rows[0]).toMatchObject({
       label: 'root',
       path: [],
-      value: 'Array(5000)',
+      value: '[3 items]',
+      depth: 0,
     })
     expect(rows.tree.rows[1]).toMatchObject({
-      label: 'root[0]',
+      label: '0',
       path: [0],
-      value: '{id, name}',
+      value: '2 fields',
+      depth: 1,
+    })
+    expect(rows.tree.rows[2]).toMatchObject({
+      label: 'id',
+      path: [0, 'id'],
+      value: '0',
+      depth: 2,
+    })
+    expect(rows.tree.rows[9]).toMatchObject({
+      label: 'name',
+      path: [2, 'name'],
+      value: '"row-2"',
+      depth: 2,
     })
   })
 
@@ -177,11 +269,16 @@ describe('deriveViewerRowsFromJson', () => {
       path: ['rows', 0, 'nested'],
       value: 'null',
     })
-    expect(rows.tree.rows[0]).toMatchObject({
-      label: 'root.rows[0].nested',
-      path: ['rows', 0, 'nested'],
-      value: 'null',
-    })
+    expect(rows.tree.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'nested',
+          path: ['rows', 0, 'nested'],
+          value: 'null',
+          depth: 3,
+        }),
+      ]),
+    )
   })
 })
 

@@ -20,4 +20,24 @@ describe('app.css', () => {
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*max-width:\s*calc\(var\(--spacing-12\) \* 3\)/s)
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)
   })
+
+  it('uses an emphasized token for tree guide lines', () => {
+    expect(css).toMatch(/\.json-treeGuides\s*\{[^}]*--json-tree-guide-color:\s*var\(--color-border-emphasized\)/s)
+    expect(css).toMatch(/\.json-treeGuides\[data-has-guides='true'\]::after\s*\{[^}]*var\(--json-tree-guide-color\)/s)
+  })
+
+  it('draws tree branch connectors toward the row content', () => {
+    expect(css).toMatch(/\.json-treeGuides\[data-has-guides='true'\]::after\s*\{[^}]*inset-inline-start:\s*100%/s)
+  })
+
+  it('leaves row gaps in tree vertical guide rails', () => {
+    expect(css).toMatch(/\.json-treeGuides\s*\{[^}]*--json-tree-guide-gap:\s*var\(--spacing-2\)/s)
+    expect(css).toMatch(/\.json-treeGuides::before\s*\{[^}]*inset-block:\s*var\(--json-tree-guide-gap\)/s)
+  })
+
+  it('aligns tree guide indentation with disclosure button centers', () => {
+    expect(css).toMatch(
+      /\.json-treeGuides\s*\{[^}]*--json-tree-indent:\s*calc\(var\(--size-element-sm\) \/ 2 \+ var\(--spacing-1\)\)/s,
+    )
+  })
 })
