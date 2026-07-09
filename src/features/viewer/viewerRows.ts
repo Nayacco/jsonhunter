@@ -85,7 +85,7 @@ export function getViewerRow(window: ViewerRowWindow, index: number) {
 
 export function deriveViewerRowsFromJson(rawValue: JsonValue, selectedPath: JsonPath = []): Required<ViewerRowsByMode> {
   const scopedValue = selectedPath.length === 0 ? rawValue : getAtPath(rawValue, selectedPath)
-  const value = scopedValue ?? rawValue
+  const value = scopedValue === undefined ? rawValue : scopedValue
 
   return {
     columns: createColumnsWindow(value, selectedPath),

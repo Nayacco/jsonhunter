@@ -48,4 +48,30 @@ describe('deriveViewerRowsFromJson', () => {
       path: ['rows', 0, 'nested', 'values', 0],
     })
   })
+
+  it('keeps a selected null leaf scoped instead of falling back to the root value', () => {
+    const rawValue = {
+      rows: [
+        {
+          nested: null,
+          fallback: {
+            name: 'should not be used',
+          },
+        },
+      ],
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, ['rows', 0, 'nested'])
+
+    expect(rows.columns.rows[0]).toMatchObject({
+      label: 'rows[0].nested',
+      path: ['rows', 0, 'nested'],
+      value: 'null',
+    })
+    expect(rows.tree.rows[0]).toMatchObject({
+      label: 'root.rows[0].nested',
+      path: ['rows', 0, 'nested'],
+      value: 'null',
+    })
+  })
 })
