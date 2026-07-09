@@ -167,7 +167,7 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
     })
 
-    await user.click(screen.getByTitle('Edit JS 1'))
+    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
 
     const editor = await screen.findByTestId('monaco-editor')
     await user.clear(editor)
@@ -175,7 +175,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
-    expect(screen.getByRole('button', { name: /duckdb 1/i })).toHaveClass('pipelineNode-stale')
+    expect(screen.getByRole('button', { name: /duckdb 1/i })).toHaveTextContent(/stale/i)
   })
 
   it('runs processing nodes through the worker and keeps the last successful preview visible', async () => {
@@ -383,7 +383,7 @@ describe('App', () => {
     })
     expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
 
-    await user.click(screen.getByTitle('Edit JS 1'))
+    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
     const editor = await screen.findByTestId('monaco-editor')
     fireEvent.change(editor, {
       target: { value: 'export default input => ({ items: [{ id: 1, name: "Hopper" }] })' },

@@ -1,3 +1,5 @@
+import { Banner } from '@astryxdesign/core/Banner'
+
 type ErrorBannerProps = {
   message?: string
 }
@@ -5,10 +7,5 @@ type ErrorBannerProps = {
 export function ErrorBanner({ message }: ErrorBannerProps) {
   if (!message) return null
 
-  return (
-    <section className="errorBanner" role="alert">
-      <strong>Execution error</strong>
-      <pre>{message}</pre>
-    </section>
-  )
+  return <Banner status="error" title="Execution error" description={message} container="section" />
 }

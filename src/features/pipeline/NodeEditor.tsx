@@ -1,4 +1,8 @@
 import { lazy, Suspense } from 'react'
+import { Button } from '@astryxdesign/core/Button'
+import { Section } from '@astryxdesign/core/Section'
+import { Text } from '@astryxdesign/core/Text'
+import { Toolbar } from '@astryxdesign/core/Toolbar'
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'))
 
@@ -13,8 +17,8 @@ type NodeEditorProps = {
 
 export function NodeEditor({ language, value, onChange, onRun, onSave, onCancel }: NodeEditorProps) {
   return (
-    <section className="nodeEditor">
-      <Suspense fallback={<div>Loading editor...</div>}>
+    <Section variant="transparent" padding={3}>
+      <Suspense fallback={<Text type="supporting">Loading editor...</Text>}>
         <MonacoEditor
           height="180px"
           language={language}
@@ -24,17 +28,17 @@ export function NodeEditor({ language, value, onChange, onRun, onSave, onCancel 
           options={{ minimap: { enabled: false }, scrollBeyondLastLine: false }}
         />
       </Suspense>
-      <div className="nodeEditorActions">
-        <button type="button" onClick={onRun}>
-          Run
-        </button>
-        <button type="button" onClick={onSave}>
-          Save
-        </button>
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </section>
+      <Toolbar
+        label="Node editor actions"
+        size="sm"
+        endContent={
+          <>
+            <Button label="Run" variant="primary" onClick={onRun} />
+            <Button label="Save" onClick={onSave} />
+            <Button label="Cancel" variant="ghost" onClick={onCancel} />
+          </>
+        }
+      />
+    </Section>
   )
 }
