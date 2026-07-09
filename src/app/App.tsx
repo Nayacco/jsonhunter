@@ -1,8 +1,12 @@
+import { AppShell } from './AppShell'
+import { ProjectLauncher } from '../features/projects/ProjectLauncher'
+
 export function App() {
   return (
-    <main className="appRoot">
-      <h1>JSON Hunter</h1>
-      <p>JSON Pipeline Workbench</p>
-    </main>
+    <AppShell
+      pipeline={<div>Pipeline</div>}
+      viewer={<ProjectLauncher onPasteJson={() => {}} onLoadUrl={() => {}} onOpenFile={() => {}} />}
+      details={<div>Details</div>}
+    />
   )
 }
