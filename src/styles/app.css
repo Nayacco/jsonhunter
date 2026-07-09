@@ -125,3 +125,84 @@ select {
 .restorePanel button:hover {
   background: rgba(30, 42, 64, 0.98);
 }
+
+.pipelineFlow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.pipelineNodes,
+.pipelineNodeWrap,
+.pipelineActions,
+.nodeEditorActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipelineNode {
+  display: grid;
+  gap: 2px;
+  min-width: 86px;
+  padding: 8px 10px;
+  color: #e5edf8;
+  background: #111a2e;
+  border: 1px solid #3a4964;
+  border-radius: 8px;
+}
+
+.pipelineNode-active {
+  border-color: #8ec5ff;
+}
+
+.pipelineNode-error {
+  border-color: #ff7b7b;
+}
+
+.pipelineNode-stale,
+.pipelineNode-blocked,
+.pipelineNode-inactive {
+  opacity: 0.58;
+}
+
+.errorBanner {
+  margin: 8px 12px;
+  padding: 10px;
+  border: 1px solid #ff7b7b;
+  border-radius: 8px;
+  background: #38151a;
+}
+
+.errorBanner pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.nodeEditor {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.editorPane {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.nodeEditorActions button,
+.pipelineActions button {
+  border: 1px solid rgba(106, 127, 158, 0.35);
+  border-radius: 8px;
+  background: rgba(22, 31, 48, 0.92);
+  color: #eef4ff;
+  padding: 10px 14px;
+}
+
+.nodeEditorActions button:hover,
+.pipelineActions button:hover {
+  background: rgba(30, 42, 64, 0.98);
+}
