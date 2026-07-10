@@ -16,6 +16,8 @@ const sourceFiles = roots.flatMap(collectTsxFiles)
 const projectPageFiles = new Set([
   join('src', 'features', 'projects', 'ProjectPageShell.tsx'),
   join('src', 'features', 'projects', 'ImportLandingPage.tsx'),
+  join('src', 'features', 'projects', 'ProjectRestorePage.tsx'),
+  join('src', 'features', 'projects', 'ProjectLoadingPage.tsx'),
 ])
 const appSource = sourceFiles.map((filePath) => readFileSync(filePath, 'utf8')).join('\n')
 const defaultLayoutSource = sourceFiles
