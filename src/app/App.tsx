@@ -9,6 +9,7 @@ import { ErrorBanner } from '../features/pipeline/ErrorBanner'
 import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
 import { ImportLandingPage } from '../features/projects/ImportLandingPage'
+import { MemoryRiskDialog } from '../features/projects/MemoryRiskDialog'
 import { ProjectLoadingPage } from '../features/projects/ProjectLoadingPage'
 import { ProjectRestorePage } from '../features/projects/ProjectRestorePage'
 import { JsonViewer } from '../features/viewer/JsonViewer'
@@ -59,6 +60,11 @@ type DetailsState = {
   path: string
   type: string
   valuePreview: string
+}
+
+type MemoryRiskRequest = {
+  warningLimitMiB: number
+  resolve(shouldContinue: boolean): void
 }
 
 function getNodeDraftValue(node: PipelineNode) {
@@ -184,16 +190,6 @@ function isSupersededWorkerError(error: unknown): boolean {
   return error instanceof Error && /superseded/i.test(error.message)
 }
 
-function shouldContinueMemoryRiskLoad(rawJsonText: string): boolean {
-  const rawSizeBytes = getRawSizeBytes(rawJsonText)
-  if (rawSizeBytes <= RAW_WARNING_LIMIT_BYTES) return true
-
-  const warningLimitMiB = Math.round(RAW_WARNING_LIMIT_BYTES / 1024 / 1024)
-  return window.confirm(
-    `This JSON is over ${warningLimitMiB} MiB and may consume significant memory while loading. Continue?`,
-  )
-}
-
 export function App() {
   const repository = useMemo(() => new ProjectRepository(), [])
   const workerClient = useMemo(() => createWorkerClient(), [])
@@ -212,6 +208,7 @@ export function App() {
   const [errorNodeId, setErrorNodeId] = useState<string | undefined>()
   const [isHydrating, setIsHydrating] = useState(true)
   const [isProjectLauncherOpen, setIsProjectLauncherOpen] = useState(false)
+  const [memoryRiskRequest, setMemoryRiskRequest] = useState<MemoryRiskRequest | undefined>()
 
   const projects = useWorkbenchStore((state) => state.projects)
   const activeProjectId = useWorkbenchStore((state) => state.activeProjectId)
@@ -411,8 +408,27 @@ export function App() {
     await executeNodes(executionNodes, nodeId)
   }
 
+  function requestMemoryRiskConfirmation(rawJsonText: string): Promise<boolean> {
+    if (getRawSizeBytes(rawJsonText) <= RAW_WARNING_LIMIT_BYTES) return Promise.resolve(true)
+
+    return new Promise((resolve) => {
+      setMemoryRiskRequest({
+        warningLimitMiB: Math.round(RAW_WARNING_LIMIT_BYTES / 1024 / 1024),
+        resolve,
+      })
+    })
+  }
+
+  function resolveMemoryRiskConfirmation(shouldContinue: boolean) {
+    if (!memoryRiskRequest) return
+
+    const { resolve } = memoryRiskRequest
+    setMemoryRiskRequest(undefined)
+    resolve(shouldContinue)
+  }
+
   async function hydrateExistingProject(projectRecord: ProjectRecord, rawJsonText: string, rawSource = projectRecord.rawSource) {
-    if (!shouldContinueMemoryRiskLoad(rawJsonText)) return
+    if (!(await requestMemoryRiskConfirmation(rawJsonText))) return
 
     const parsed = await parseRawWithWorker(rawJsonText)
     const nextProject = {
@@ -452,7 +468,7 @@ export function App() {
   }
 
   async function createProject(name: string, source: RawSource, rawJsonText: string) {
-    if (!shouldContinueMemoryRiskLoad(rawJsonText)) return
+    if (!(await requestMemoryRiskConfirmation(rawJsonText))) return
 
     const parsed = await parseRawWithWorker(rawJsonText)
     await createProjectFromRaw(name, source, rawJsonText)
@@ -818,7 +834,17 @@ export function App() {
     content = loadedWorkbench
   }
 
-  return content
+  return (
+    <>
+      {content}
+      <MemoryRiskDialog
+        isOpen={memoryRiskRequest !== undefined}
+        warningLimitMiB={memoryRiskRequest?.warningLimitMiB ?? Math.round(RAW_WARNING_LIMIT_BYTES / 1024 / 1024)}
+        onCancel={() => resolveMemoryRiskConfirmation(false)}
+        onConfirm={() => resolveMemoryRiskConfirmation(true)}
+      />
+    </>
+  )
 }
 
 export async function requestWorker(

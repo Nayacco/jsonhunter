@@ -557,16 +557,38 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
   })
 
-  it('asks for confirmation before parsing memory-risk pasted JSON', async () => {
+  it('keeps pasted JSON available when a memory-risk import is canceled', async () => {
     const user = userEvent.setup()
     rawSizeBytesOverride.value = 100 * 1024 * 1024 + 1
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     await createPasteProjectFromText(user, '{"items":[]}')
 
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/100 MiB/i))
+    expect(
+      await screen.findByRole('heading', { name: /large json may use significant memory/i }),
+    ).toBeVisible()
     expect(workerRequest).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'parseRaw' }))
+    await user.click(screen.getByRole('button', { name: /cancel import/i }))
+
+    expect(await screen.findByLabelText(/paste json/i)).toHaveValue('{"items":[]}')
     expect(screen.queryByRole('button', { name: /raw/i })).toBeNull()
+  })
+
+  it('parses memory-risk JSON only after explicit confirmation', async () => {
+    const user = userEvent.setup()
+    rawSizeBytesOverride.value = 100 * 1024 * 1024 + 1
+
+    await createPasteProjectFromText(user, '{"items":[]}')
+
+    expect(
+      await screen.findByRole('heading', { name: /large json may use significant memory/i }),
+    ).toBeVisible()
+    expect(workerRequest).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'parseRaw' }))
+    await user.click(screen.getByRole('button', { name: /continue loading/i }))
+
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+    expect(workerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'parseRaw', rawJsonText: '{"items":[]}' }),
+    )
   })
 
   it('does not mirror oversized raw text into refresh storage', async () => {
