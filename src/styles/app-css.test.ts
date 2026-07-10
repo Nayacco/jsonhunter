@@ -16,6 +16,11 @@ describe('app.css', () => {
     expect(css).not.toMatch(/rgba?\(/)
   })
 
+  it('keeps landing page atmosphere on Astryx tokens', () => {
+    expect(css).toMatch(/\.importLanding-hero\s*\{[^}]*var\(--color-background-surface\)/s)
+    expect(css).not.toMatch(/\.importLanding-[^{]+\{[^}]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|\d+px)/s)
+  })
+
   it('limits column row values so keys remain visible', () => {
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*max-width:\s*calc\(var\(--spacing-12\) \* 3\)/s)
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)

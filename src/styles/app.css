@@ -5,6 +5,22 @@ body,
   min-height: 100%;
 }
 
+.importLanding-hero {
+  background-image: radial-gradient(circle at top, var(--color-background-surface), transparent);
+}
+
+.importLanding-intro {
+  text-align: center;
+}
+
+.importLanding-grid > * {
+  min-width: 0;
+}
+
+.importLanding-story {
+  margin-inline: auto;
+}
+
 .virtualScroll {
   min-height: 14rem;
   height: min(52vh, 32rem);
