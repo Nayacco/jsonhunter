@@ -121,21 +121,91 @@ describe('App', () => {
   async function createPasteProject(user: ReturnType<typeof userEvent.setup>) {
     renderWithProviders(<App />)
 
-    fireEvent.change(screen.getByLabelText(/paste json/i), {
+    fireEvent.change(await screen.findByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":1,"name":"Ada"}]}' },
     })
-    await user.click(screen.getByRole('button', { name: /create from paste/i }))
+    await user.click(screen.getByRole('button', { name: /create project/i }))
     await screen.findByRole('button', { name: /raw/i })
   }
 
   async function createPasteProjectFromText(user: ReturnType<typeof userEvent.setup>, text: string) {
     renderWithProviders(<App />)
 
-    fireEvent.change(screen.getByLabelText(/paste json/i), {
+    fireEvent.change(await screen.findByLabelText(/paste json/i), {
       target: { value: text },
     })
-    await user.click(screen.getByRole('button', { name: /create from paste/i }))
+    await user.click(screen.getByRole('button', { name: /create project/i }))
   }
+
+  it('shows the full landing page without empty workbench regions', async () => {
+    renderWithProviders(<App />)
+
+    expect(await screen.findByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
+    expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
+    expect(screen.queryByRole('region', { name: /json viewer/i })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: /details/i })).toBeNull()
+  })
+
+  it('returns from the new-project landing page to the unchanged workbench', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+
+    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    expect(await screen.findByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /back to current project/i }))
+
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+  })
+
+  it('keeps the current project clean when a replacement import fails', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+    workerRequest.mockImplementation(async (request: any) => {
+      if (request.type === 'parseRaw') {
+        return {
+          type: 'workerError',
+          jobId: request.jobId,
+          message: 'Replacement JSON is invalid',
+        }
+      }
+      return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
+    })
+
+    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    fireEvent.change(screen.getByLabelText(/paste json/i), {
+      target: { value: '{broken' },
+    })
+    await user.click(screen.getByRole('button', { name: /create (?:from paste|project)/i }))
+    expect(await screen.findByText(/replacement json is invalid/i)).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /back to current project/i }))
+
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+    expect(screen.queryByText(/replacement json is invalid/i)).toBeNull()
+  })
+
+  it('shows source restoration without workbench regions', async () => {
+    listProjects.mockImplementation(async () => [makeUrlProject()])
+
+    renderWithProviders(<App />)
+
+    expect(await screen.findByRole('heading', { name: /raw json required/i })).toBeVisible()
+    expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
+    expect(screen.queryByRole('region', { name: /json viewer/i })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: /details/i })).toBeNull()
+  })
+
+  it('shows a full-page hydration state without flashing the launcher', async () => {
+    const deferred = createDeferred<WorkerResponse>()
+    workerRequest.mockImplementationOnce(() => deferred.promise)
+    listProjects.mockImplementation(async () => [makePasteProject()])
+
+    renderWithProviders(<App />)
+
+    expect(await screen.findByText(/restoring project/i)).toBeVisible()
+    expect(screen.queryByRole('heading', { name: /make complex json feel navigable/i })).toBeNull()
+    expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
+  })
 
   it('does not expose an editor save path for raw', async () => {
     const user = userEvent.setup()
@@ -182,7 +252,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":2,"name":"Lin"}]}' },
     })
-    await user.click(screen.getByRole('button', { name: /create from paste/i }))
+    await user.click(screen.getByRole('button', { name: /create project/i }))
 
     await waitFor(() => {
       expect(workerRequest).toHaveBeenCalledWith(
@@ -193,13 +263,13 @@ describe('App', () => {
       )
     })
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /create from paste/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /create project/i })).toBeNull()
     })
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
 
     expect(await screen.findByRole('button', { name: /Lin/ })).toBeVisible()
     expect(screen.queryByRole('button', { name: /Ada/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /create from paste/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /create project/i })).toBeNull()
   })
 
   it('marks downstream nodes stale after saving a middle node', async () => {

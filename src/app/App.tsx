@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { formatPath, getAtPath } from '../domain/jsonPath'
 import { summarizeJson, type JsonSummary } from '../domain/jsonSummary'
 import type { JsonPath, JsonValue } from '../domain/jsonTypes'
@@ -8,8 +8,9 @@ import { DetailsPreview } from '../features/details/DetailsPreview'
 import { ErrorBanner } from '../features/pipeline/ErrorBanner'
 import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
-import { ProjectLauncher } from '../features/projects/ProjectLauncher'
-import { ProjectRestorePanel } from '../features/projects/ProjectRestorePanel'
+import { ImportLandingPage } from '../features/projects/ImportLandingPage'
+import { ProjectLoadingPage } from '../features/projects/ProjectLoadingPage'
+import { ProjectRestorePage } from '../features/projects/ProjectRestorePage'
 import { JsonViewer } from '../features/viewer/JsonViewer'
 import {
   deriveColumnViewFromJson,
@@ -339,7 +340,6 @@ export function App() {
   const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
   const hasProject = project !== undefined
   const hasLoadedRaw = rawValue !== undefined && project !== undefined
-  const isAutoHydratingPersistedRawProject = isHydrating && project?.rawJsonText !== undefined
   const viewerRows = useMemo(
     () =>
       displayedValue === undefined
@@ -639,6 +639,8 @@ export function App() {
   }
 
   function handleCloseProjectLauncher() {
+    setError(undefined)
+    setErrorNodeId(undefined)
     setIsProjectLauncherOpen(false)
   }
 
@@ -699,46 +701,19 @@ export function App() {
     })
   }
 
-  const projectLauncher = (
-    <ProjectLauncher
-      onPasteJson={handleCreateFromPaste}
-      onLoadUrl={handleLoadUrl}
-      onOpenFile={handleOpenFile}
-      onCancel={hasProject ? handleCloseProjectLauncher : undefined}
+  const pipelinePane = (
+    <PipelineFlow
+      nodes={displayedPipeline.nodes}
+      activeNodeId={displayedPipeline.activeNodeId}
+      nodeStatuses={displayedNodeStatuses}
+      onSelectNode={(id) => void handleSelectNode(id)}
+      onEditNode={handleEditNode}
+      onAddNode={handleAddNode}
+      onOpenAnotherJson={handleOpenProjectLauncher}
     />
   )
 
-  const pipelinePane =
-    hasProject && !isProjectLauncherOpen ? (
-      <PipelineFlow
-        nodes={displayedPipeline.nodes}
-        activeNodeId={displayedPipeline.activeNodeId}
-        nodeStatuses={displayedNodeStatuses}
-        onSelectNode={(id) => void handleSelectNode(id)}
-        onEditNode={handleEditNode}
-        onAddNode={handleAddNode}
-        onOpenAnotherJson={handleOpenProjectLauncher}
-      />
-    ) : (
-      projectLauncher
-    )
-
-  const restorePane =
-    !project || hasLoadedRaw || isAutoHydratingPersistedRawProject
-      ? undefined
-      : project.rawSource.type === 'url'
-        ? (() => {
-            const { url } = project.rawSource
-            return <ProjectRestorePanel sourceLabel={url} onReloadUrl={() => handleReloadUrl(url)} />
-          })()
-        : project.rawSource.type === 'file'
-          ? (() => {
-              const { fileName } = project.rawSource
-              return <ProjectRestorePanel sourceLabel={fileName} onReselectFile={handleRestoreFile} />
-            })()
-          : <ProjectRestorePanel sourceLabel={project.rawSource.label} onPasteAgain={handleRestorePaste} />
-
-  const viewerPane = hasProject ? (
+  const viewerPane = (
     <>
       <ErrorBanner message={error} />
       {draft ? (
@@ -767,7 +742,7 @@ export function App() {
             />
           )}
         </>
-      ) : hasLoadedRaw ? (
+      ) : (
         <JsonViewer
           mode={viewerMode}
           selectedPath={selectedPath}
@@ -778,15 +753,11 @@ export function App() {
           onWindowChange={handleViewerWindowChange}
           onColumnWindowChange={handleColumnWindowChange}
         />
-      ) : (
-        restorePane
       )}
     </>
-  ) : (
-    <ErrorBanner message={error} />
   )
 
-  return (
+  const loadedWorkbench = (
     <AppShell
       pipeline={pipelinePane}
       viewer={viewerPane}
@@ -800,6 +771,54 @@ export function App() {
       }
     />
   )
+
+  let content: ReactNode
+
+  if (isHydrating) {
+    content = <ProjectLoadingPage />
+  } else if (!hasProject || isProjectLauncherOpen) {
+    content = (
+      <ImportLandingPage
+        error={error}
+        onClearError={() => setError(undefined)}
+        onPasteJson={handleCreateFromPaste}
+        onLoadUrl={handleLoadUrl}
+        onOpenFile={handleOpenFile}
+        onCancel={hasProject ? handleCloseProjectLauncher : undefined}
+      />
+    )
+  } else if (!hasLoadedRaw) {
+    if (project.rawSource.type === 'url') {
+      const { url } = project.rawSource
+      content = (
+        <ProjectRestorePage
+          sourceLabel={url}
+          error={error}
+          onReloadUrl={() => handleReloadUrl(url)}
+        />
+      )
+    } else if (project.rawSource.type === 'file') {
+      content = (
+        <ProjectRestorePage
+          sourceLabel={project.rawSource.fileName}
+          error={error}
+          onReselectFile={handleRestoreFile}
+        />
+      )
+    } else {
+      content = (
+        <ProjectRestorePage
+          sourceLabel={project.rawSource.label}
+          error={error}
+          onPasteAgain={handleRestorePaste}
+        />
+      )
+    }
+  } else {
+    content = loadedWorkbench
+  }
+
+  return content
 }
 
 export async function requestWorker(
