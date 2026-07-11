@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -446,6 +446,33 @@ describe('JsonViewer', () => {
     expect(screen.getByText('// 1 item')).toBeInTheDocument()
   })
 
+  it('does not shrink the requested source window while a branch is collapsed', async () => {
+    const user = userEvent.setup()
+    const windowChanges: { startIndex: number; count: number }[] = []
+    const rawValue = {
+      data: [{ active: false }],
+      meta: 'fixture',
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="source"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 24 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+        onWindowChange={(mode, window) => {
+          if (mode === 'source') windowChanges.push(window)
+        }}
+      />,
+    )
+
+    windowChanges.length = 0
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+
+    expect(windowChanges).toEqual([])
+  })
+
   it('renders collapsed source summaries with item counts', async () => {
     const user = userEvent.setup()
     const rawValue = {
@@ -467,6 +494,62 @@ describe('JsonViewer', () => {
     expect(screen.getByText('// 2 items')).toHaveClass('json-sourceSummary')
     expect(screen.getByRole('button', { name: /"data": \[/i })).toHaveTextContent(/"data": \[ … \]\/\/ 2 items/)
     expect(screen.queryByText('"alias"')).not.toBeInTheDocument()
+  })
+
+  it('restores loaded source descendants after collapsing and expanding with window updates', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [
+        {
+          alias: '',
+          auctionEndTime: '',
+          baseCcy: 'USDC',
+          category: '1',
+          contTdSwTime: '',
+          ctMult: '',
+          ctType: '',
+          ctVal: '',
+        },
+      ],
+      meta: 'fixture',
+    }
+    const fullSourceTotal = deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 64 } }).source
+      .totalCount
+
+    function Harness() {
+      const [sourceWindow, setSourceWindow] = useState({ startIndex: 0, count: 24 })
+
+      return (
+        <>
+          <JsonViewer
+            mode="source"
+            selectedPath={[]}
+            rows={deriveViewerRowsFromJson(rawValue, [], { source: sourceWindow })}
+            onModeChange={() => {}}
+            onSelectPath={() => {}}
+            onWindowChange={(mode, window) => {
+              if (mode !== 'source') return
+              setSourceWindow((current) =>
+                current.startIndex === window.startIndex && current.count === window.count ? current : window,
+              )
+            }}
+          />
+          <span data-testid="source-window-count">{sourceWindow.count}</span>
+        </>
+      )
+    }
+
+    renderWithProviders(<Harness />)
+
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+    await waitFor(() => expect(screen.queryByText('"ctVal"')).not.toBeInTheDocument())
+    expect(Number(screen.getByTestId('source-window-count').textContent)).toBe(fullSourceTotal)
+
+    await user.click(screen.getByRole('button', { name: 'Expand data' }))
+
+    expect(screen.getByText('"alias"')).toBeInTheDocument()
+    expect(screen.getByText('"baseCcy"')).toBeInTheDocument()
+    expect(screen.getByText('"ctVal"')).toBeInTheDocument()
   })
 
   it('does not render every row when virtual items are unavailable for a large count', () => {

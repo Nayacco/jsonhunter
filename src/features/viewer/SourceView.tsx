@@ -98,7 +98,9 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
           <VirtualRows
             count={visibleCount}
             estimateSize={32}
-            onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
+            onWindowChange={
+              hasCollapsedPaths ? undefined : (startIndex, count) => onWindowChange?.({ startIndex, count })
+            }
             renderRow={(index) => {
               const row = shouldRenderVisibleRows ? visibleRows[index] : getViewerRow(rows, index)
 
