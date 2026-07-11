@@ -45,4 +45,12 @@ describe('app.css', () => {
       /\.json-treeGuides\s*\{[^}]*--json-tree-indent:\s*calc\(var\(--size-element-sm\) \/ 2 \+ var\(--spacing-1\)\)/s,
     )
   })
+
+  it('defines source viewer styles with design tokens', () => {
+    expect(css).toContain('.json-sourceRow')
+    expect(css).toContain('.json-sourceGuides')
+    expect(css).toContain('.json-sourceToken-key')
+    expect(css).toContain('var(--json-source-guide-width)')
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}/)
+  })
 })

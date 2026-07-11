@@ -99,6 +99,72 @@ body,
   width: var(--size-element-sm);
 }
 
+.json-sourceRow {
+  min-height: var(--size-element-md);
+  padding-inline-end: var(--spacing-2);
+  color: var(--color-text-primary);
+}
+
+.json-sourceGuides {
+  --json-source-indent: calc(var(--size-element-sm) / 2 + var(--spacing-1));
+  --json-source-guide-color: var(--color-border-emphasized);
+  --json-source-guide-gap: var(--spacing-2);
+
+  align-self: stretch;
+  flex: 0 0 var(--json-source-guide-width);
+  min-width: 0;
+  min-height: var(--size-element-md);
+  position: relative;
+}
+
+.json-sourceGuides::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--json-source-guide-gap);
+  inset-inline: 0;
+  background-image: linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(100% - var(--border-width)),
+    var(--json-source-guide-color) calc(100% - var(--border-width)),
+    var(--json-source-guide-color) 100%
+  );
+  background-repeat: repeat-x;
+  background-size: var(--json-source-indent) 100%;
+}
+
+.json-sourceGuides[data-depth='0'] {
+  display: none;
+}
+
+.json-sourceDisclosureSpacer {
+  flex: 0 0 var(--size-element-sm);
+  width: var(--size-element-sm);
+}
+
+.json-sourceToken-key {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.json-sourceToken-string {
+  color: var(--color-text-orange);
+}
+
+.json-sourceToken-number {
+  color: var(--color-text-cyan);
+}
+
+.json-sourceToken-boolean,
+.json-sourceToken-null {
+  color: var(--color-text-blue);
+  font-weight: var(--font-weight-semibold);
+}
+
+.json-sourceToken-punctuation {
+  color: var(--color-text-secondary);
+}
+
 .json-columnBrowser {
   overflow-x: auto;
   background: var(--color-background-surface);
