@@ -365,6 +365,58 @@ describe('JsonViewer', () => {
     expect(screen.getByRole('button', { name: /"source": "fixture"/i })).toBeInTheDocument()
   })
 
+  it('renders source rows with disclosure controls and token classes', () => {
+    const rawValue = {
+      data: [{ active: false }],
+      meta: 'fixture',
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="source"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 24 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Collapse data' })).toBeInTheDocument()
+    expect(screen.getByText('"data"')).toHaveClass('json-sourceToken-key')
+    expect(screen.getByText('false')).toHaveClass('json-sourceToken-boolean')
+
+    const activeRow = screen.getByText('"active"').closest('.json-sourceRow')
+    const activeGuides = activeRow?.querySelector('.json-sourceGuides')
+    expect(activeGuides).toHaveAttribute('data-depth', '3')
+  })
+
+  it('collapses source descendants while preserving sibling rows', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ active: false }],
+      meta: 'fixture',
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="source"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 24 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+
+    expect(screen.queryByText('"active"')).not.toBeInTheDocument()
+    expect(screen.queryByText(']')).not.toBeInTheDocument()
+    expect(screen.getByText('"meta"')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Expand data' }))
+    expect(screen.getByText('"active"')).toBeInTheDocument()
+  })
+
   it('does not render every row when virtual items are unavailable for a large count', () => {
     renderWithProviders(
       <JsonViewer
