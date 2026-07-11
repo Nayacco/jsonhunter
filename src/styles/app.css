@@ -100,7 +100,7 @@ body,
 }
 
 .json-sourceRow {
-  min-height: var(--size-element-md);
+  min-height: var(--size-element-sm);
   padding-inline-end: var(--spacing-2);
   color: var(--color-text-primary);
 }
@@ -113,7 +113,7 @@ body,
   align-self: stretch;
   flex: 0 0 var(--json-source-guide-width);
   min-width: 0;
-  min-height: var(--size-element-md);
+  min-height: var(--size-element-sm);
   position: relative;
 }
 
@@ -142,6 +142,17 @@ body,
   width: var(--size-element-sm);
 }
 
+.json-sourceToken-key,
+.json-sourceToken-string,
+.json-sourceToken-number,
+.json-sourceToken-boolean,
+.json-sourceToken-null,
+.json-sourceToken-punctuation,
+.json-sourceSummary {
+  font-size: var(--font-size-sm);
+  line-height: var(--text-supporting-leading);
+}
+
 .json-sourceToken-key {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
@@ -163,6 +174,11 @@ body,
 
 .json-sourceToken-punctuation {
   color: var(--color-text-secondary);
+}
+
+.json-sourceSummary {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .json-columnBrowser {

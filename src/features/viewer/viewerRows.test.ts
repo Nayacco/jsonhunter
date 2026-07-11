@@ -250,6 +250,53 @@ describe('deriveViewerRowsFromJson', () => {
     })
   })
 
+  it('derives collapsed summaries and item counts for source collections', () => {
+    const rawValue = {
+      data: [{ alias: '', baseCcy: 'USDC' }, { alias: 'second', baseCcy: 'USDT' }],
+      meta: { source: 'fixture' },
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      source: { startIndex: 0, count: 32 },
+    }).source.rows
+
+    expect(rows.find((row) => row.path.join('.') === 'data')).toMatchObject({
+      source: {
+        summary: {
+          countLabel: '2 items',
+          tokens: [
+            { kind: 'key', text: '"data"' },
+            { kind: 'punctuation', text: ': ' },
+            { kind: 'punctuation', text: '[' },
+            { kind: 'punctuation', text: ' … ' },
+            { kind: 'punctuation', text: ']' },
+            { kind: 'punctuation', text: ',' },
+          ],
+        },
+      },
+    })
+    expect(rows.find((row) => row.path.join('.') === 'data.0')).toMatchObject({
+      source: {
+        summary: {
+          countLabel: '2 items',
+          tokens: [
+            { kind: 'punctuation', text: '{' },
+            { kind: 'punctuation', text: ' … ' },
+            { kind: 'punctuation', text: '}' },
+            { kind: 'punctuation', text: ',' },
+          ],
+        },
+      },
+    })
+    expect(rows.find((row) => row.path.join('.') === 'meta')).toMatchObject({
+      source: {
+        summary: {
+          countLabel: '1 item',
+        },
+      },
+    })
+  })
+
   it('does not read array entries outside the visible columns window', () => {
     const rawValue = createWindowedArrayWithGuardedTail()
 

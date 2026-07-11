@@ -54,22 +54,26 @@ function renderToken(token: SourceToken, index: number) {
   )
 }
 
-function SourceLine({ row }: { row: ViewerRow }) {
+function SourceLine({ row, isCollapsed }: { row: ViewerRow; isCollapsed: boolean }) {
   if (!row.source) {
     return <Text type="code">{row.label}</Text>
   }
 
-  return <Text type="code">{row.source.tokens.map(renderToken)}</Text>
+  const tokens = isCollapsed && row.source.summary ? row.source.summary.tokens : row.source.tokens
+
+  return <Text type="code">{tokens.map(renderToken)}</Text>
 }
 
 export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
+  const hasCollapsedPaths = collapsedPaths.size > 0
   const canFilterRows = rows.startIndex === 0 && rows.rows.length === rows.totalCount
   const visibleRows = useMemo(
-    () => (canFilterRows ? rows.rows.filter((row) => !isSourceRowHidden(row, collapsedPaths)) : rows.rows),
-    [canFilterRows, collapsedPaths, rows.rows],
+    () => rows.rows.filter((row) => !isSourceRowHidden(row, collapsedPaths)),
+    [collapsedPaths, rows.rows],
   )
-  const visibleCount = canFilterRows ? visibleRows.length : rows.totalCount
+  const shouldRenderVisibleRows = canFilterRows || hasCollapsedPaths
+  const visibleCount = shouldRenderVisibleRows ? visibleRows.length : rows.totalCount
 
   function toggleRow(path: JsonPath) {
     const key = pathKey(path)
@@ -96,7 +100,7 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
             estimateSize={32}
             onWindowChange={(startIndex, count) => onWindowChange?.({ startIndex, count })}
             renderRow={(index) => {
-              const row = canFilterRows ? visibleRows[index] : getViewerRow(rows, index)
+              const row = shouldRenderVisibleRows ? visibleRows[index] : getViewerRow(rows, index)
 
               if (!row) {
                 return <Text type="supporting">Loading row {index + 1}</Text>
@@ -145,7 +149,12 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
                   ) : (
                     <HStack className="json-sourceDisclosureSpacer" aria-hidden="true" />
                   )}
-                  <SourceLine row={row} />
+                  <SourceLine row={row} isCollapsed={isCollapsed} />
+                  {isCollapsed && row.source?.summary && (
+                    <Text type="code" className="json-sourceSummary">
+                      // {row.source.summary.countLabel}
+                    </Text>
+                  )}
                 </HStack>
               )
             }}

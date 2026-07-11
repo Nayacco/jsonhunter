@@ -11,9 +11,15 @@ export type SourceToken = {
   text: string
 }
 
+export type SourceSummaryMetadata = {
+  tokens: SourceToken[]
+  countLabel: string
+}
+
 export type SourceRowMetadata = {
   kind: SourceRowKind
   tokens: SourceToken[]
+  summary?: SourceSummaryMetadata
 }
 
 export type ViewerRow = {
@@ -436,6 +442,23 @@ function createSourceLabel(depth: number, tokens: SourceToken[]) {
   return `${'  '.repeat(depth)}${tokens.map((token) => token.text).join('')}`
 }
 
+function createSourceCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'item' : 'items'}`
+}
+
+function createCollapsedCollectionTokens(
+  openTokens: SourceToken[],
+  closeToken: SourceToken,
+  hasTrailingComma: boolean,
+) {
+  return [
+    ...openTokens,
+    createPunctuationToken(' … '),
+    closeToken,
+    ...createTrailingCommaTokens(hasTrailingComma),
+  ]
+}
+
 function appendSourceValueRows(
   context: SourceRowContext,
   value: JsonValue,
@@ -456,7 +479,14 @@ function appendSourceValueRows(
       path,
       depth,
       hasChildren: entries.length > 0,
-      source: { kind: 'object-open', tokens },
+      source: {
+        kind: 'object-open',
+        tokens,
+        summary: {
+          tokens: createCollapsedCollectionTokens(tokens, createPunctuationToken('}'), hasTrailingComma),
+          countLabel: createSourceCountLabel(entries.length),
+        },
+      },
     })
     entries.forEach(([key, entry], index) => {
       appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
@@ -511,7 +541,14 @@ function appendSourcePropertyRows(
       path,
       depth,
       hasChildren: entries.length > 0,
-      source: { kind: 'object-open', tokens },
+      source: {
+        kind: 'object-open',
+        tokens,
+        summary: {
+          tokens: createCollapsedCollectionTokens(tokens, createPunctuationToken('}'), hasTrailingComma),
+          countLabel: createSourceCountLabel(entries.length),
+        },
+      },
     })
     entries.forEach(([key, entry], index) => {
       appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
@@ -550,7 +587,14 @@ function appendSourceArrayRows(
     path,
     depth,
     hasChildren: value.length > 0,
-    source: { kind: 'array-open', tokens: openTokens },
+    source: {
+      kind: 'array-open',
+      tokens: openTokens,
+      summary: {
+        tokens: createCollapsedCollectionTokens(openTokens, createPunctuationToken(']'), hasTrailingComma),
+        countLabel: createSourceCountLabel(value.length),
+      },
+    },
   })
 
   value.forEach((entry, index) => {

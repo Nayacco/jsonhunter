@@ -410,11 +410,63 @@ describe('JsonViewer', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse data' }))
 
     expect(screen.queryByText('"active"')).not.toBeInTheDocument()
-    expect(screen.queryByText(']')).not.toBeInTheDocument()
+    expect(screen.getByText('// 1 item')).toBeInTheDocument()
     expect(screen.getByText('"meta"')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Expand data' }))
     expect(screen.getByText('"active"')).toBeInTheDocument()
+  })
+
+  it('collapses source descendants in a partial source window', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ active: false }],
+      meta: 'fixture',
+    }
+    const sourceRows = deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 6 } }).source
+
+    renderWithProviders(
+      <JsonViewer
+        mode="source"
+        selectedPath={[]}
+        rows={{
+          source: {
+            ...sourceRows,
+            totalCount: sourceRows.totalCount + 20,
+          },
+        }}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+
+    expect(screen.queryByText('"active"')).not.toBeInTheDocument()
+    expect(screen.getByText('// 1 item')).toBeInTheDocument()
+  })
+
+  it('renders collapsed source summaries with item counts', async () => {
+    const user = userEvent.setup()
+    const rawValue = {
+      data: [{ alias: '', baseCcy: 'USDC' }, { alias: 'second', baseCcy: 'USDT' }],
+    }
+
+    renderWithProviders(
+      <JsonViewer
+        mode="source"
+        selectedPath={[]}
+        rows={deriveViewerRowsFromJson(rawValue, [], { source: { startIndex: 0, count: 32 } })}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Collapse data' }))
+
+    expect(screen.getByText('// 2 items')).toHaveClass('json-sourceSummary')
+    expect(screen.getByRole('button', { name: /"data": \[/i })).toHaveTextContent(/"data": \[ … \]\/\/ 2 items/)
+    expect(screen.queryByText('"alias"')).not.toBeInTheDocument()
   })
 
   it('does not render every row when virtual items are unavailable for a large count', () => {
