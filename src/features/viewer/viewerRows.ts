@@ -14,6 +14,7 @@ export type SourceToken = {
 export type SourceSummaryMetadata = {
   tokens: SourceToken[]
   countLabel: string
+  hiddenLineCount: number
 }
 
 export type SourceRowMetadata = {
@@ -316,6 +317,26 @@ function getChildEntryCount(value: JsonValue) {
   return 0
 }
 
+function getSourceLineCount(value: JsonValue): number {
+  if (Array.isArray(value)) {
+    let count = 2
+    for (const entry of value) {
+      count += getSourceLineCount(entry)
+    }
+    return count
+  }
+
+  if (value && typeof value === 'object') {
+    let count = 2
+    for (const entry of Object.values(value)) {
+      count += getSourceLineCount(entry)
+    }
+    return count
+  }
+
+  return 1
+}
+
 function getChildEntryWindow(
   value: JsonValue,
   basePath: JsonPath,
@@ -446,6 +467,10 @@ function createSourceCountLabel(count: number) {
   return `${count} ${count === 1 ? 'item' : 'items'}`
 }
 
+function getCollapsedHiddenLineCount(value: JsonValue) {
+  return Math.max(getSourceLineCount(value) - 1, 0)
+}
+
 function createCollapsedCollectionTokens(
   openTokens: SourceToken[],
   closeToken: SourceToken,
@@ -485,6 +510,7 @@ function appendSourceValueRows(
         summary: {
           tokens: createCollapsedCollectionTokens(tokens, createPunctuationToken('}'), hasTrailingComma),
           countLabel: createSourceCountLabel(entries.length),
+          hiddenLineCount: getCollapsedHiddenLineCount(value),
         },
       },
     })
@@ -547,6 +573,7 @@ function appendSourcePropertyRows(
         summary: {
           tokens: createCollapsedCollectionTokens(tokens, createPunctuationToken('}'), hasTrailingComma),
           countLabel: createSourceCountLabel(entries.length),
+          hiddenLineCount: getCollapsedHiddenLineCount(value),
         },
       },
     })
@@ -593,6 +620,7 @@ function appendSourceArrayRows(
       summary: {
         tokens: createCollapsedCollectionTokens(openTokens, createPunctuationToken(']'), hasTrailingComma),
         countLabel: createSourceCountLabel(value.length),
+        hiddenLineCount: getCollapsedHiddenLineCount(value),
       },
     },
   })

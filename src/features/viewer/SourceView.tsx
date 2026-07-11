@@ -17,6 +17,8 @@ type SourceViewProps = {
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
+const SOURCE_COLLAPSE_OVERSCAN = 8
+
 function getSourceGuideStyle(depth = 0) {
   const normalizedDepth = Math.max(0, depth)
   const guideWidth =
@@ -75,8 +77,20 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
   const shouldRenderVisibleRows = canFilterRows || hasCollapsedPaths
   const visibleCount = shouldRenderVisibleRows ? visibleRows.length : rows.totalCount
 
-  function toggleRow(path: JsonPath) {
-    const key = pathKey(path)
+  function toggleRow(row: ViewerRow) {
+    const key = pathKey(row.path)
+    const isCurrentlyCollapsed = collapsedPaths.has(key)
+
+    if (!isCurrentlyCollapsed && row.source?.summary && rows.rows.length < rows.totalCount) {
+      const requestedCount = Math.min(
+        rows.totalCount,
+        rows.rows.length + row.source.summary.hiddenLineCount + SOURCE_COLLAPSE_OVERSCAN,
+      )
+      if (requestedCount > rows.rows.length) {
+        onWindowChange?.({ startIndex: rows.startIndex, count: requestedCount })
+      }
+    }
+
     setCollapsedPaths((current) => {
       const next = new Set(current)
       if (next.has(key)) next.delete(key)
@@ -145,7 +159,7 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
                       variant="ghost"
                       onClick={(event) => {
                         event.stopPropagation()
-                        toggleRow(row.path)
+                        toggleRow(row)
                       }}
                     />
                   ) : (

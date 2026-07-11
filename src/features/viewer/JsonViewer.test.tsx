@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import type { JsonValue } from '../../domain/jsonTypes'
 import { renderWithProviders } from '../../test/render'
 import { JsonViewer } from './JsonViewer'
 import { deriveColumnViewFromJson, deriveViewerRowsFromJson } from './viewerRows'
@@ -471,6 +472,67 @@ describe('JsonViewer', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse data' }))
 
     expect(windowChanges).toEqual([])
+  })
+
+  it('loads source sibling rows when collapsing a large array item', async () => {
+    const user = userEvent.setup()
+    mockVirtualizerState.virtualItems = Array.from({ length: 12 }, (_, index) => ({
+      index,
+      key: index,
+      start: index * 32,
+    }))
+    const rawValue: JsonValue = {
+      data: [
+        {
+          field0: '0',
+          field1: '1',
+          field2: '2',
+          field3: '3',
+          field4: '4',
+          field5: '5',
+          field6: '6',
+          field7: '7',
+          field8: '8',
+          field9: '9',
+          field10: '10',
+          field11: '11',
+          field12: '12',
+          field13: '13',
+        },
+        { alias: 'second' },
+        { alias: 'third' },
+      ],
+    }
+
+    function Harness() {
+      const [sourceWindow, setSourceWindow] = useState({ startIndex: 0, count: 12 })
+
+      return (
+        <JsonViewer
+          mode="source"
+          selectedPath={[]}
+          rows={deriveViewerRowsFromJson(rawValue, [], { source: sourceWindow })}
+          onModeChange={() => {}}
+          onSelectPath={() => {}}
+          onWindowChange={(mode, window) => {
+            if (mode !== 'source') return
+            setSourceWindow((current) =>
+              current.startIndex === window.startIndex && current.count === window.count ? current : window,
+            )
+          }}
+        />
+      )
+    }
+
+    renderWithProviders(<Harness />)
+
+    expect(screen.queryByText('"alias"')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Collapse 0' }))
+
+    await waitFor(() => expect(screen.getAllByText('"alias"').length).toBeGreaterThan(0))
+    expect(screen.getByText('"second"')).toBeInTheDocument()
+    expect(screen.queryByText('"field0"')).not.toBeInTheDocument()
   })
 
   it('renders collapsed source summaries with item counts', async () => {
