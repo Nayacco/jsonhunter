@@ -2,12 +2,27 @@ import { appendPath, formatPath, getAtPath } from '../../domain/jsonPath'
 import { summarizeJson } from '../../domain/jsonSummary'
 import type { JsonPath, JsonValue } from '../../domain/jsonTypes'
 
+export type SourceTokenKind = 'punctuation' | 'key' | 'string' | 'number' | 'boolean' | 'null'
+
+export type SourceRowKind = 'object-open' | 'array-open' | 'property' | 'primitive' | 'close'
+
+export type SourceToken = {
+  kind: SourceTokenKind
+  text: string
+}
+
+export type SourceRowMetadata = {
+  kind: SourceRowKind
+  tokens: SourceToken[]
+}
+
 export type ViewerRow = {
   label: string
   path: JsonPath
   value?: string
   depth?: number
   hasChildren?: boolean
+  source?: SourceRowMetadata
 }
 
 export type ViewerRowWindow = {
@@ -402,6 +417,25 @@ type SourceRowContext = {
   emit(row: ViewerRow): void
 }
 
+function createPunctuationToken(text: string): SourceToken {
+  return { kind: 'punctuation', text }
+}
+
+function createPrimitiveSourceToken(value: JsonValue): SourceToken {
+  if (typeof value === 'string') return { kind: 'string', text: JSON.stringify(value) }
+  if (typeof value === 'number') return { kind: 'number', text: JSON.stringify(value) }
+  if (typeof value === 'boolean') return { kind: 'boolean', text: JSON.stringify(value) }
+  return { kind: 'null', text: 'null' }
+}
+
+function createTrailingCommaTokens(hasTrailingComma: boolean): SourceToken[] {
+  return hasTrailingComma ? [createPunctuationToken(',')] : []
+}
+
+function createSourceLabel(depth: number, tokens: SourceToken[]) {
+  return `${'  '.repeat(depth)}${tokens.map((token) => token.text).join('')}`
+}
+
 function appendSourceValueRows(
   context: SourceRowContext,
   value: JsonValue,
@@ -409,55 +443,98 @@ function appendSourceValueRows(
   depth: number,
   hasTrailingComma: boolean,
 ) {
-  const comma = hasTrailingComma ? ',' : ''
-  const indent = '  '.repeat(depth)
-
   if (Array.isArray(value)) {
-    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, `${indent}[`)
+    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, [createPunctuationToken('[')])
     return
   }
 
   if (value && typeof value === 'object') {
+    const tokens = [createPunctuationToken('{')]
     const entries = Object.entries(value)
-    context.emit({ label: `${indent}{`, path })
+    context.emit({
+      label: createSourceLabel(depth, tokens),
+      path,
+      depth,
+      hasChildren: entries.length > 0,
+      source: { kind: 'object-open', tokens },
+    })
     entries.forEach(([key, entry], index) => {
       appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
     })
-    context.emit({ label: `${indent}}${comma}`, path })
+    const closeTokens = [createPunctuationToken('}'), ...createTrailingCommaTokens(hasTrailingComma)]
+    context.emit({
+      label: createSourceLabel(depth, closeTokens),
+      path,
+      depth,
+      hasChildren: false,
+      source: { kind: 'close', tokens: closeTokens },
+    })
     return
   }
 
-  context.emit({ label: `${indent}${JSON.stringify(value)}${comma}`, path })
+  const tokens = [createPrimitiveSourceToken(value), ...createTrailingCommaTokens(hasTrailingComma)]
+  context.emit({
+    label: createSourceLabel(depth, tokens),
+    path,
+    depth,
+    hasChildren: false,
+    source: { kind: 'primitive', tokens },
+  })
 }
 
 function appendSourcePropertyRows(
   context: SourceRowContext,
-  label: string,
+  key: string,
   value: JsonValue,
   path: JsonPath,
   depth: number,
   hasTrailingComma: boolean,
 ) {
-  const comma = hasTrailingComma ? ',' : ''
-  const indent = '  '.repeat(depth)
-  const propertyLabel = `${JSON.stringify(label)}: `
+  const keyTokens: SourceToken[] = [
+    { kind: 'key', text: JSON.stringify(key) },
+    createPunctuationToken(': '),
+  ]
 
   if (Array.isArray(value)) {
-    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, `${indent}${propertyLabel}[`)
+    appendSourceArrayRows(context, value, path, depth, hasTrailingComma, [
+      ...keyTokens,
+      createPunctuationToken('['),
+    ])
     return
   }
 
   if (value && typeof value === 'object') {
     const entries = Object.entries(value)
-    context.emit({ label: `${indent}${propertyLabel}{`, path })
+    const tokens = [...keyTokens, createPunctuationToken('{')]
+    context.emit({
+      label: createSourceLabel(depth, tokens),
+      path,
+      depth,
+      hasChildren: entries.length > 0,
+      source: { kind: 'object-open', tokens },
+    })
     entries.forEach(([key, entry], index) => {
       appendSourcePropertyRows(context, key, entry, appendPath(path, key), depth + 1, index < entries.length - 1)
     })
-    context.emit({ label: `${indent}}${comma}`, path })
+    const closeTokens = [createPunctuationToken('}'), ...createTrailingCommaTokens(hasTrailingComma)]
+    context.emit({
+      label: createSourceLabel(depth, closeTokens),
+      path,
+      depth,
+      hasChildren: false,
+      source: { kind: 'close', tokens: closeTokens },
+    })
     return
   }
 
-  context.emit({ label: `${indent}${propertyLabel}${JSON.stringify(value)}${comma}`, path })
+  const tokens = [...keyTokens, createPrimitiveSourceToken(value), ...createTrailingCommaTokens(hasTrailingComma)]
+  context.emit({
+    label: createSourceLabel(depth, tokens),
+    path,
+    depth,
+    hasChildren: false,
+    source: { kind: 'property', tokens },
+  })
 }
 
 function appendSourceArrayRows(
@@ -466,16 +543,26 @@ function appendSourceArrayRows(
   path: JsonPath,
   depth: number,
   hasTrailingComma: boolean,
-  openingLabel: string,
+  openTokens: SourceToken[],
 ) {
-  const comma = hasTrailingComma ? ',' : ''
-  const indent = '  '.repeat(depth)
-
-  context.emit({ label: openingLabel, path })
+  context.emit({
+    label: createSourceLabel(depth, openTokens),
+    path,
+    depth,
+    hasChildren: value.length > 0,
+    source: { kind: 'array-open', tokens: openTokens },
+  })
 
   value.forEach((entry, index) => {
     appendSourceValueRows(context, entry, appendPath(path, index), depth + 1, index < value.length - 1)
   })
 
-  context.emit({ label: `${indent}]${comma}`, path })
+  const closeTokens = [createPunctuationToken(']'), ...createTrailingCommaTokens(hasTrailingComma)]
+  context.emit({
+    label: createSourceLabel(depth, closeTokens),
+    path,
+    depth,
+    hasChildren: false,
+    source: { kind: 'close', tokens: closeTokens },
+  })
 }

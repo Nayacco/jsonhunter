@@ -182,6 +182,74 @@ describe('deriveViewerRowsFromJson', () => {
     ])
   })
 
+  it('derives token metadata for structured source rows', () => {
+    const rawValue = {
+      data: [{ active: false, score: 0.02, note: null }],
+      meta: 'fixture',
+    }
+
+    const rows = deriveViewerRowsFromJson(rawValue, [], {
+      source: { startIndex: 0, count: 16 },
+    }).source.rows
+
+    expect(rows[0]).toMatchObject({
+      label: '{',
+      path: [],
+      depth: 0,
+      hasChildren: true,
+      source: {
+        kind: 'object-open',
+        tokens: [{ kind: 'punctuation', text: '{' }],
+      },
+    })
+    expect(rows[1]).toMatchObject({
+      label: '  "data": [',
+      path: ['data'],
+      depth: 1,
+      hasChildren: true,
+      source: {
+        kind: 'array-open',
+        tokens: [
+          { kind: 'key', text: '"data"' },
+          { kind: 'punctuation', text: ': ' },
+          { kind: 'punctuation', text: '[' },
+        ],
+      },
+    })
+    expect(rows.find((row) => row.label.includes('"active": false'))).toMatchObject({
+      path: ['data', 0, 'active'],
+      depth: 3,
+      hasChildren: false,
+      source: {
+        kind: 'property',
+        tokens: [
+          { kind: 'key', text: '"active"' },
+          { kind: 'punctuation', text: ': ' },
+          { kind: 'boolean', text: 'false' },
+          { kind: 'punctuation', text: ',' },
+        ],
+      },
+    })
+    expect(rows.find((row) => row.label.includes('"score": 0.02'))?.source?.tokens).toContainEqual({
+      kind: 'number',
+      text: '0.02',
+    })
+    expect(rows.find((row) => row.label.includes('"note": null'))?.source?.tokens).toContainEqual({
+      kind: 'null',
+      text: 'null',
+    })
+    expect(rows.at(-1)).toMatchObject({
+      label: '}',
+      path: [],
+      depth: 0,
+      hasChildren: false,
+      source: {
+        kind: 'close',
+        tokens: [{ kind: 'punctuation', text: '}' }],
+      },
+    })
+  })
+
   it('does not read array entries outside the visible columns window', () => {
     const rawValue = createWindowedArrayWithGuardedTail()
 
