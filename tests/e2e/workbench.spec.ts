@@ -13,6 +13,19 @@ async function getTypography(locator: Locator) {
   })
 }
 
+async function getLongestTransitionDurationMs(locator: Locator) {
+  return locator.evaluate((element) => {
+    const durations = getComputedStyle(element).transitionDuration.split(',')
+
+    return Math.max(
+      ...durations.map((duration) => {
+        const value = Number.parseFloat(duration)
+        return duration.trim().endsWith('ms') ? value : value * 1000
+      }),
+    )
+  })
+}
+
 test('uses consistent key and value typography across data views', async ({ page }) => {
   await page.goto('/')
 
@@ -95,6 +108,35 @@ test('aligns compact selected backgrounds across columns, tree, and source views
   const sourceMetrics = await getVirtualRowMetrics('.json-sourceRow[data-selected="true"]')
   expectBalancedVirtualRow(sourceMetrics)
   expect(sourceMetrics.height).toBe(columnsMetrics.height)
+})
+
+test('keeps selection feedback fast across columns, tree, and source views', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill('{"items":[{"id":1},{"id":2}],"meta":{"page":1}}')
+  await page.getByRole('button', { name: /create project/i }).click()
+
+  const columnsView = page.getByRole('region', { name: 'Columns view' })
+  await columnsView.locator('.astryx-item').filter({ hasText: 'items' }).click()
+  expect(
+    await getLongestTransitionDurationMs(
+      columnsView.locator('.astryx-item[aria-selected="true"]').first(),
+    ),
+  ).toBeLessThanOrEqual(75)
+
+  await page.getByRole('radio', { name: /^tree$/i }).click()
+  expect(
+    await getLongestTransitionDurationMs(
+      page.getByRole('region', { name: 'Tree view' }).locator('.json-treeRow').first(),
+    ),
+  ).toBeLessThanOrEqual(75)
+
+  await page.getByRole('radio', { name: /^source$/i }).click()
+  expect(
+    await getLongestTransitionDurationMs(
+      page.getByRole('region', { name: 'Source view' }).locator('.json-sourceRow').first(),
+    ),
+  ).toBeLessThanOrEqual(75)
 })
 
 test('creates a paste project and restores it after refresh', async ({ page }) => {

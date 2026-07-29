@@ -146,6 +146,10 @@ body,
   background-color: var(--color-accent-muted);
 }
 
+.json-selectableRow {
+  transition-duration: calc(var(--duration-fast-min) / 2);
+}
+
 .json-sourceGuides {
   --json-source-indent: calc(var(--size-element-sm) / 2 + var(--spacing-1));
   --json-source-guide-color: var(--color-border-emphasized);

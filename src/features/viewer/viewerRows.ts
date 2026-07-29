@@ -148,6 +148,27 @@ export function deriveViewerRowsFromJson(
   }
 }
 
+export function deriveViewerRowsForMode(
+  rawValue: JsonValue,
+  mode: keyof ViewerRowsByMode,
+  selectedPath: JsonPath = [],
+  window?: ViewerWindowRequest,
+): ViewerRowsByMode {
+  const scopedValue = selectedPath.length === 0 ? rawValue : getAtPath(rawValue, selectedPath)
+  const value = scopedValue === undefined ? rawValue : scopedValue
+
+  switch (mode) {
+    case 'columns':
+      return { columns: createColumnsWindow(value, selectedPath, window) }
+    case 'tree':
+      return { tree: createTreeWindow(rawValue, []) }
+    case 'table':
+      return { table: createTableWindow(value, selectedPath, window) }
+    case 'source':
+      return { source: createSourceWindow(rawValue, [], window) }
+  }
+}
+
 export function deriveColumnViewFromJson(
   rawValue: JsonValue,
   selectedPath: JsonPath = [],

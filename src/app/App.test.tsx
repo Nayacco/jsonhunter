@@ -7,7 +7,15 @@ import type { WorkerResponse } from '../workers/workerProtocol'
 import { renderWithProviders } from '../test/render'
 import { App, requestWorker } from './App'
 
-const { listProjects, saveProject, workerRequest, createWorkerClient, rawSizeBytesOverride } = vi.hoisted(() => ({
+const {
+  listProjects,
+  saveProject,
+  workerRequest,
+  createWorkerClient,
+  rawSizeBytesOverride,
+  deriveViewerRowsFromJsonCalls,
+  deriveViewerRowsForModeCalls,
+} = vi.hoisted(() => ({
   listProjects: vi.fn<() => Promise<ProjectRecord[]>>(async () => []),
   saveProject: vi.fn<(project: ProjectRecord) => Promise<void>>(async () => {}),
   workerRequest: vi.fn<(request: any) => Promise<any>>(async () => ({
@@ -21,6 +29,8 @@ const { listProjects, saveProject, workerRequest, createWorkerClient, rawSizeByt
     terminate: vi.fn(),
   })),
   rawSizeBytesOverride: { value: undefined as number | undefined },
+  deriveViewerRowsFromJsonCalls: vi.fn(),
+  deriveViewerRowsForModeCalls: vi.fn(),
 }))
 
 function createDeferred<T>() {
@@ -58,6 +68,28 @@ vi.mock('../workers/workerRuntime', () => ({
 vi.mock('../workers/workerClient', () => ({
   createWorkerClient,
 }))
+
+vi.mock('../features/viewer/viewerRows', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../features/viewer/viewerRows')>()
+  const deriveViewerRowsForMode = (
+    actual as typeof actual & {
+      deriveViewerRowsForMode?: (...args: any[]) => unknown
+    }
+  ).deriveViewerRowsForMode
+
+  return {
+    ...actual,
+    deriveViewerRowsFromJson: (...args: Parameters<typeof actual.deriveViewerRowsFromJson>) => {
+      deriveViewerRowsFromJsonCalls(...args)
+      return actual.deriveViewerRowsFromJson(...args)
+    },
+    deriveViewerRowsForMode: (...args: any[]) => {
+      deriveViewerRowsForModeCalls(...args)
+      if (!deriveViewerRowsForMode) throw new Error('deriveViewerRowsForMode is not implemented')
+      return deriveViewerRowsForMode(...args)
+    },
+  }
+})
 
 vi.mock('@monaco-editor/react', () => ({
   default: ({ value, onChange, options }: any) => (
@@ -107,6 +139,8 @@ describe('App', () => {
       return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
     })
     createWorkerClient.mockClear()
+    deriveViewerRowsFromJsonCalls.mockClear()
+    deriveViewerRowsForModeCalls.mockClear()
     rawSizeBytesOverride.value = undefined
     vi.restoreAllMocks()
     window.localStorage.clear()
@@ -182,6 +216,30 @@ describe('App', () => {
 
     expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
     expect(screen.queryByText(/replacement json is invalid/i)).toBeNull()
+  })
+
+  it('does not derive source rows again when selecting an item', async () => {
+    const user = userEvent.setup()
+    const largeJson = JSON.stringify({
+      items: Array.from({ length: 5000 }, (_, index) => ({
+        id: index,
+        name: `row-${index}`,
+      })),
+    })
+
+    await createPasteProjectFromText(user, largeJson)
+    await user.click(await screen.findByRole('radio', { name: /^source$/i }))
+    const sourceItem = await screen.findByRole('button', { name: '"id": 0,' })
+    const deriveCountBeforeSelection =
+      deriveViewerRowsFromJsonCalls.mock.calls.length + deriveViewerRowsForModeCalls.mock.calls.length
+
+    expect(deriveCountBeforeSelection).toBeGreaterThan(0)
+    await user.click(sourceItem)
+    await screen.findByText('root.items[0].id')
+
+    expect(
+      deriveViewerRowsFromJsonCalls.mock.calls.length + deriveViewerRowsForModeCalls.mock.calls.length,
+    ).toBe(deriveCountBeforeSelection)
   })
 
   it('shows source restoration without workbench regions', async () => {

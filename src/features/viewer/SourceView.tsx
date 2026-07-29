@@ -154,7 +154,7 @@ export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }:
                   align="center"
                   aria-label={row.label.trim()}
                   aria-selected={isSelected || undefined}
-                  className="json-sourceRow"
+                  className="json-selectableRow json-sourceRow"
                   data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
                   onKeyDown={(event) => {

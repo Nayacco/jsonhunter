@@ -69,6 +69,7 @@ export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: Col
 
                       return (
                         <Item
+                          className="json-selectableRow"
                           label={
                             <Text type="label" maxLines={1} className="json-viewKey">
                               {row.label}

@@ -15,7 +15,7 @@ import { ProjectRestorePage } from '../features/projects/ProjectRestorePage'
 import { JsonViewer } from '../features/viewer/JsonViewer'
 import {
   deriveColumnViewFromJson,
-  deriveViewerRowsFromJson,
+  deriveViewerRowsForMode,
   getColumnId,
   type ColumnWindowRequests,
   type ViewerWindowRequests,
@@ -66,6 +66,8 @@ type MemoryRiskRequest = {
   warningLimitMiB: number
   resolve(shouldContinue: boolean): void
 }
+
+const ROOT_VIEWER_PATH: JsonPath = []
 
 function getNodeDraftValue(node: PipelineNode) {
   if (node.type === 'js') return node.code
@@ -301,7 +303,16 @@ export function App() {
 
   useEffect(() => {
     setViewerWindows({})
-  }, [displayedSourceNodeId, selectedPath, viewerMode])
+  }, [displayedSourceNodeId, viewerMode])
+
+  useEffect(() => {
+    if (viewerMode !== 'table') return
+
+    setViewerWindows((current) => {
+      if (current.table === undefined) return current
+      return { ...current, table: undefined }
+    })
+  }, [selectedPath, viewerMode])
 
   useEffect(() => {
     setColumnWindows({})
@@ -337,19 +348,22 @@ export function App() {
   const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
   const hasProject = project !== undefined
   const hasLoadedRaw = rawValue !== undefined && project !== undefined
+  const activeViewerPath = viewerMode === 'table' ? selectedPath : ROOT_VIEWER_PATH
+  const activeViewerWindow = viewerWindows[viewerMode]
   const viewerRows = useMemo(
     () =>
-      displayedValue === undefined
+      displayedValue === undefined || viewerMode === 'columns'
         ? undefined
-        : deriveViewerRowsFromJson(displayedValue, selectedPath, viewerWindows),
-    [displayedValue, selectedPath, viewerWindows],
+        : deriveViewerRowsForMode(displayedValue, viewerMode, activeViewerPath, activeViewerWindow),
+    [activeViewerPath, activeViewerWindow, displayedValue, viewerMode],
   )
+  const activeColumnPath = viewerMode === 'columns' ? selectedPath : ROOT_VIEWER_PATH
   const columnView = useMemo(
     () =>
-      displayedValue === undefined
+      displayedValue === undefined || viewerMode !== 'columns'
         ? undefined
-        : deriveColumnViewFromJson(displayedValue, selectedPath, columnWindows),
-    [columnWindows, displayedValue, selectedPath],
+        : deriveColumnViewFromJson(displayedValue, activeColumnPath, columnWindows),
+    [activeColumnPath, columnWindows, displayedValue, viewerMode],
   )
   const detailsPreview = details ?? getPlaceholderDetails(activeNode)
 

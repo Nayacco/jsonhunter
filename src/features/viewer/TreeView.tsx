@@ -98,7 +98,7 @@ export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: T
                 <HStack
                   gap={2}
                   align="center"
-                  className="json-treeRow"
+                  className="json-selectableRow json-treeRow"
                   aria-selected={isSelected || undefined}
                   data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
