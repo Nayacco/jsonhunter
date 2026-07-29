@@ -60,6 +60,7 @@ export function VirtualRows({ count, estimateSize = 32, onWindowChange, renderRo
               top: 0,
               left: 0,
               width: '100%',
+              height: estimateSize,
               transform: `translateY(${item.start}px)`,
             }}
           >

@@ -112,22 +112,58 @@ describe('deriveViewerRowsFromJson', () => {
     })
 
     expect(rows.tree.rows).toEqual([
-      { label: 'root', path: [], value: '2 fields', depth: 0, hasChildren: true },
-      { label: 'data', path: ['data'], value: '[1 items]', depth: 1, hasChildren: true },
-      { label: '0', path: ['data', 0], value: '2 fields', depth: 2, hasChildren: true },
-      { label: 'id', path: ['data', 0, 'id'], value: '"121"', depth: 3, hasChildren: false },
-      { label: 'entities', path: ['data', 0, 'entities'], value: '1 field', depth: 3, hasChildren: true },
-      { label: 'urls', path: ['data', 0, 'entities', 'urls'], value: '[1 items]', depth: 4, hasChildren: true },
-      { label: '0', path: ['data', 0, 'entities', 'urls', 0], value: '1 field', depth: 5, hasChildren: true },
+      { label: 'root', path: [], value: '2 fields', valueRole: 'metadata', depth: 0, hasChildren: true },
+      { label: 'data', path: ['data'], value: '[1 items]', valueRole: 'metadata', depth: 1, hasChildren: true },
+      { label: '0', path: ['data', 0], value: '2 fields', valueRole: 'metadata', depth: 2, hasChildren: true },
+      {
+        label: 'id',
+        path: ['data', 0, 'id'],
+        value: '"121"',
+        valueRole: 'value',
+        depth: 3,
+        hasChildren: false,
+      },
+      {
+        label: 'entities',
+        path: ['data', 0, 'entities'],
+        value: '1 field',
+        valueRole: 'metadata',
+        depth: 3,
+        hasChildren: true,
+      },
+      {
+        label: 'urls',
+        path: ['data', 0, 'entities', 'urls'],
+        value: '[1 items]',
+        valueRole: 'metadata',
+        depth: 4,
+        hasChildren: true,
+      },
+      {
+        label: '0',
+        path: ['data', 0, 'entities', 'urls', 0],
+        value: '1 field',
+        valueRole: 'metadata',
+        depth: 5,
+        hasChildren: true,
+      },
       {
         label: 'expanded_url',
         path: ['data', 0, 'entities', 'urls', 0, 'expanded_url'],
         value: '"https://example.com"',
+        valueRole: 'value',
         depth: 6,
         hasChildren: false,
       },
-      { label: 'meta', path: ['meta'], value: '1 field', depth: 1, hasChildren: true },
-      { label: 'source', path: ['meta', 'source'], value: '"fixture"', depth: 2, hasChildren: false },
+      { label: 'meta', path: ['meta'], value: '1 field', valueRole: 'metadata', depth: 1, hasChildren: true },
+      {
+        label: 'source',
+        path: ['meta', 'source'],
+        value: '"fixture"',
+        valueRole: 'value',
+        depth: 2,
+        hasChildren: false,
+      },
     ])
   })
 
@@ -321,10 +357,28 @@ describe('deriveViewerRowsFromJson', () => {
     })
 
     expect(rows.columns.rows).toEqual([
-      { label: 'profile', path: ['profile'], value: '3 fields' },
-      { label: 'metadata', path: ['metadata'], value: '1 field' },
-      { label: 'empty', path: ['empty'], value: '0 fields' },
+      { label: 'profile', path: ['profile'], value: '3 fields', valueRole: 'metadata' },
+      { label: 'metadata', path: ['metadata'], value: '1 field', valueRole: 'metadata' },
+      { label: 'empty', path: ['empty'], value: '0 fields', valueRole: 'metadata' },
     ])
+  })
+
+  it('marks primitive previews as values and collection summaries as metadata', () => {
+    const rows = deriveViewerRowsFromJson({
+      name: 'Ada',
+      active: true,
+      items: [1, 2],
+      profile: { id: 1 },
+    })
+
+    expect(rows.columns.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'name', valueRole: 'value' }),
+        expect.objectContaining({ label: 'active', valueRole: 'value' }),
+        expect.objectContaining({ label: 'items', valueRole: 'metadata' }),
+        expect.objectContaining({ label: 'profile', valueRole: 'metadata' }),
+      ]),
+    )
   })
 
   it('fully expands tree rows for array entries in the requested window', () => {

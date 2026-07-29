@@ -13,6 +13,7 @@ import { getViewerRow, type SourceToken, type ViewerRow, type ViewerRowWindow } 
 
 type SourceViewProps = {
   rows: ViewerRowWindow
+  selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
@@ -36,6 +37,10 @@ function pathKey(path: JsonPath) {
   return JSON.stringify(path)
 }
 
+function isSamePath(left: JsonPath, right: JsonPath) {
+  return left.length === right.length && left.every((segment, index) => segment === right[index])
+}
+
 function hasCollapsedAncestor(path: JsonPath, collapsedPaths: Set<string>) {
   for (let length = 1; length < path.length; length += 1) {
     if (collapsedPaths.has(pathKey(path.slice(0, length)))) return true
@@ -48,25 +53,39 @@ function isSourceRowHidden(row: ViewerRow, collapsedPaths: Set<string>) {
   return hasCollapsedAncestor(row.path, collapsedPaths)
 }
 
+function getTokenRoleClassName(token: SourceToken) {
+  if (token.kind === 'key') return 'json-viewKey'
+  if (token.kind === 'punctuation') return 'json-viewMeta'
+  return 'json-viewValue'
+}
+
+function getTokenTextType(token: SourceToken) {
+  return token.kind === 'key' ? 'label' : 'supporting'
+}
+
 function renderToken(token: SourceToken, index: number) {
   return (
-    <span key={`${token.kind}-${index}-${token.text}`} className={`json-sourceToken-${token.kind}`}>
+    <Text
+      key={`${token.kind}-${index}-${token.text}`}
+      type={getTokenTextType(token)}
+      className={`json-sourceToken-${token.kind} ${getTokenRoleClassName(token)}`}
+    >
       {token.text}
-    </span>
+    </Text>
   )
 }
 
 function SourceLine({ row, isCollapsed }: { row: ViewerRow; isCollapsed: boolean }) {
   if (!row.source) {
-    return <Text type="code">{row.label}</Text>
+    return <Text type="label">{row.label}</Text>
   }
 
   const tokens = isCollapsed && row.source.summary ? row.source.summary.tokens : row.source.tokens
 
-  return <Text type="code">{tokens.map(renderToken)}</Text>
+  return <Text>{tokens.map(renderToken)}</Text>
 }
 
-export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewProps) {
+export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }: SourceViewProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
   const hasCollapsedPaths = collapsedPaths.size > 0
   const canFilterRows = rows.startIndex === 0 && rows.rows.length === rows.totalCount
@@ -123,6 +142,7 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
               }
 
               const isCollapsed = collapsedPaths.has(pathKey(row.path))
+              const isSelected = isSamePath(selectedPath, row.path)
               const depth = row.depth ?? 0
               const canCollapse =
                 row.hasChildren && (row.source?.kind === 'object-open' || row.source?.kind === 'array-open')
@@ -133,7 +153,9 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
                   gap={1}
                   align="center"
                   aria-label={row.label.trim()}
+                  aria-selected={isSelected || undefined}
                   className="json-sourceRow"
+                  data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return
@@ -167,7 +189,7 @@ export function SourceView({ rows, onSelectPath, onWindowChange }: SourceViewPro
                   )}
                   <SourceLine row={row} isCollapsed={isCollapsed} />
                   {isCollapsed && row.source?.summary && (
-                    <Text type="code" className="json-sourceSummary">
+                    <Text type="supporting" className="json-sourceSummary json-viewMeta">
                       // {row.source.summary.countLabel}
                     </Text>
                   )}

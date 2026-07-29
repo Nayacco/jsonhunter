@@ -23,6 +23,10 @@ function isSamePath(left: JsonPath | undefined, right: JsonPath) {
   return left !== undefined && left.length === right.length && left.every((segment, index) => segment === right[index])
 }
 
+function getValueClassName(valueRole: 'value' | 'metadata' | undefined) {
+  return valueRole === 'metadata' ? 'json-viewMeta' : 'json-viewValue'
+}
+
 export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: ColumnsViewProps) {
   return (
     <Section>
@@ -45,7 +49,7 @@ export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: Col
                 className="json-columnPanel"
               >
                 <Heading level={3}>{column.title}</Heading>
-                <Text type="supporting" display="block" maxLines={1}>
+                <Text type="supporting" display="block" maxLines={1} className="json-viewMeta">
                   {pathLabel(column.path)}
                 </Text>
                 {column.rows.totalCount === 0 ? (
@@ -65,9 +69,18 @@ export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: Col
 
                       return (
                         <Item
-                          label={row.label}
+                          label={
+                            <Text type="label" maxLines={1} className="json-viewKey">
+                              {row.label}
+                            </Text>
+                          }
                           endContent={
-                            <Text type="supporting" display="block" maxLines={1} className="json-columnValue">
+                            <Text
+                              type="supporting"
+                              display="block"
+                              maxLines={1}
+                              className={`json-columnValue ${getValueClassName(row.valueRole)}`}
+                            >
                               {row.value ?? index + 1}
                             </Text>
                           }

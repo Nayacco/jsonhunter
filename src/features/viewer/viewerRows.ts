@@ -23,10 +23,13 @@ export type SourceRowMetadata = {
   summary?: SourceSummaryMetadata
 }
 
+export type ViewerValueRole = 'value' | 'metadata'
+
 export type ViewerRow = {
   label: string
   path: JsonPath
   value?: string
+  valueRole?: ViewerValueRole
   depth?: number
   hasChildren?: boolean
   source?: SourceRowMetadata
@@ -199,6 +202,10 @@ function isColumnExpandable(value: JsonValue | undefined) {
   return Array.isArray(value) || (value !== null && typeof value === 'object')
 }
 
+function getViewerValueRole(value: JsonValue): ViewerValueRole {
+  return value !== null && typeof value === 'object' ? 'metadata' : 'value'
+}
+
 function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: ViewerWindowRequest) {
   const { startIndex, count } = normalizeWindow(window)
   const totalCount = getChildEntryCount(value)
@@ -208,6 +215,7 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: View
         label: basePath.length === 0 ? 'value' : formatPath(basePath),
         path: basePath,
         value: summarizeColumnValue(value),
+        valueRole: getViewerValueRole(value),
       },
     ])
   }
@@ -218,6 +226,7 @@ function createColumnsWindow(value: JsonValue, basePath: JsonPath, window?: View
       label: entry.label,
       path: entry.path,
       value: summarizeColumnValue(entry.value),
+      valueRole: getViewerValueRole(entry.value),
     })),
     totalCount,
     startIndex,
@@ -242,6 +251,7 @@ function createTreeWindow(value: JsonValue, basePath: JsonPath) {
       label: isRoot ? 'root' : String(path[path.length - 1]),
       path,
       value: summarizeColumnValue(currentValue),
+      valueRole: getViewerValueRole(currentValue),
       depth: path.length - basePath.length,
       hasChildren: getChildEntryCount(currentValue) > 0,
     })
@@ -281,6 +291,7 @@ function createTableWindow(value: JsonValue, basePath: JsonPath, window?: Viewer
       label: getTableRowLabel(entry, index),
       path: appendPath(tableSource.path, index),
       value: summarizeJson(entry).preview,
+      valueRole: getViewerValueRole(entry),
       }
     })
     return createViewerRowWindow(rows, tableSource.value.length, startIndex)

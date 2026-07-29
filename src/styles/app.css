@@ -31,13 +31,47 @@ body,
   background: var(--color-background-surface);
 }
 
-.virtualRow + .virtualRow {
-  border-top: var(--border-width) solid var(--color-border);
+.virtualRow {
+  display: flex;
+  align-items: center;
+}
+
+.virtualRow > * {
+  inline-size: 100%;
+}
+
+.virtualRow + .virtualRow::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  border-block-start: var(--border-width) solid var(--color-border);
+  content: '';
+  pointer-events: none;
+}
+
+.json-viewKey {
+  color: var(--color-text-gray);
+}
+
+.json-viewValue {
+  color: var(--color-data-orange-4);
+  font-weight: var(--font-weight-semibold);
+}
+
+.json-viewMeta {
+  color: var(--color-text-secondary);
 }
 
 .json-treeRow {
-  min-height: var(--size-element-md);
+  min-height: var(--size-element-sm);
   padding-inline-end: var(--spacing-2);
+  border-radius: var(--radius-element);
+  transition:
+    background-color var(--duration-fast-min) var(--ease-standard);
+}
+
+.json-treeRow[data-selected='true'] {
+  background-color: var(--color-accent-muted);
 }
 
 .json-treeKey {
@@ -61,7 +95,7 @@ body,
   align-self: stretch;
   flex: 0 0 var(--json-tree-guide-width);
   min-width: 0;
-  min-height: var(--size-element-md);
+  min-height: var(--size-element-sm);
   position: relative;
 }
 
@@ -103,6 +137,13 @@ body,
   min-height: var(--size-element-sm);
   padding-inline-end: var(--spacing-2);
   color: var(--color-text-primary);
+  border-radius: var(--radius-element);
+  transition:
+    background-color var(--duration-fast-min) var(--ease-standard);
+}
+
+.json-sourceRow[data-selected='true'] {
+  background-color: var(--color-accent-muted);
 }
 
 .json-sourceGuides {
@@ -140,45 +181,6 @@ body,
 .json-sourceDisclosureSpacer {
   flex: 0 0 var(--size-element-sm);
   width: var(--size-element-sm);
-}
-
-.json-sourceToken-key,
-.json-sourceToken-string,
-.json-sourceToken-number,
-.json-sourceToken-boolean,
-.json-sourceToken-null,
-.json-sourceToken-punctuation,
-.json-sourceSummary {
-  font-size: var(--font-size-sm);
-  line-height: var(--text-supporting-leading);
-}
-
-.json-sourceToken-key {
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-semibold);
-}
-
-.json-sourceToken-string {
-  color: var(--color-text-orange);
-}
-
-.json-sourceToken-number {
-  color: var(--color-text-cyan);
-}
-
-.json-sourceToken-boolean,
-.json-sourceToken-null {
-  color: var(--color-text-blue);
-  font-weight: var(--font-weight-semibold);
-}
-
-.json-sourceToken-punctuation {
-  color: var(--color-text-secondary);
-}
-
-.json-sourceSummary {
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-semibold);
 }
 
 .json-columnBrowser {

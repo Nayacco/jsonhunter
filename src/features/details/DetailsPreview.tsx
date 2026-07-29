@@ -3,7 +3,6 @@ import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
 import { Section } from '@astryxdesign/core/Section'
 import { VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
-import { Token } from '@astryxdesign/core/Token'
 
 type DetailsPreviewProps = {
   path: string
@@ -18,21 +17,27 @@ export function DetailsPreview({ path, type, valuePreview, sourceNodeLabel }: De
       <VStack gap={4} as="section" aria-label="Details preview">
         <VStack gap={1}>
           <Heading level={2}>Details</Heading>
-          <Text type="supporting" display="block" wordBreak="break-word">
+          <Text type="supporting" display="block" wordBreak="break-word" className="json-viewMeta">
             {path}
           </Text>
         </VStack>
 
         <MetadataList title="Selection">
-          <MetadataListItem label="Type">
-            <Token label={type} />
+          <MetadataListItem label="Type" className="json-viewKey">
+            <Text type="supporting" className="json-viewValue">
+              {type}
+            </Text>
           </MetadataListItem>
-          <MetadataListItem label="Value">
-            <Text type="code" wordBreak="break-word">
+          <MetadataListItem label="Value" className="json-viewKey">
+            <Text type="supporting" wordBreak="break-word" className="json-viewValue">
               {valuePreview}
             </Text>
           </MetadataListItem>
-          <MetadataListItem label="Source">{sourceNodeLabel}</MetadataListItem>
+          <MetadataListItem label="Source" className="json-viewKey">
+            <Text type="supporting" wordBreak="break-word" className="json-viewValue">
+              {sourceNodeLabel}
+            </Text>
+          </MetadataListItem>
         </MetadataList>
 
         <Section>

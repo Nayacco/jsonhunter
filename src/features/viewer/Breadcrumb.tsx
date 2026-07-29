@@ -1,4 +1,5 @@
 import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs'
+import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
 
 type BreadcrumbProps = {
@@ -33,7 +34,9 @@ export function Breadcrumb({ selectedPath, onSelectPath }: BreadcrumbProps) {
                   }
             }
           >
-            {item}
+            <Text type="supporting" color="inherit" className="json-viewMeta">
+              {item}
+            </Text>
           </BreadcrumbItem>
         )
       })}

@@ -1,4 +1,101 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
+
+async function getTypography(locator: Locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element)
+
+    return {
+      family: style.fontFamily,
+      size: style.fontSize,
+      weight: style.fontWeight,
+      lineHeight: style.lineHeight,
+    }
+  })
+}
+
+test('uses consistent key and value typography across data views', async ({ page }) => {
+  await page.goto('/')
+
+  await page
+    .getByLabel(/paste json/i)
+    .fill('{"items":[{"id":121,"name":"Ada"}],"meta":{"page":1}}')
+  await page.getByRole('button', { name: /create project/i }).click()
+
+  const columnsView = page.getByRole('region', { name: 'Columns view' })
+  await columnsView.locator('.astryx-item').filter({ hasText: 'items' }).click()
+  await columnsView.locator('.astryx-item').filter({ hasText: /^0/ }).click()
+
+  const columnsKey = await getTypography(columnsView.getByText('id', { exact: true }))
+  const columnsValue = await getTypography(columnsView.getByText('121', { exact: true }))
+
+  await page.getByRole('radio', { name: /^tree$/i }).click()
+  const treeView = page.getByRole('region', { name: 'Tree view' })
+  expect(await getTypography(treeView.getByText('id', { exact: true }))).toEqual(columnsKey)
+  expect(await getTypography(treeView.getByText('121', { exact: true }))).toEqual(columnsValue)
+
+  await page.getByRole('radio', { name: /^table$/i }).click()
+  const tableView = page.getByRole('region', { name: 'Table view' })
+  expect(await getTypography(tableView.getByText('id', { exact: true }))).toEqual(columnsKey)
+  expect(await getTypography(tableView.getByText('121', { exact: true }))).toEqual(columnsValue)
+
+  await page.getByRole('radio', { name: /^source$/i }).click()
+  const sourceView = page.getByRole('region', { name: 'Source view' })
+  expect(await getTypography(sourceView.getByText('"id"', { exact: true }))).toEqual(columnsKey)
+  expect(await getTypography(sourceView.getByText('121', { exact: true }))).toEqual(columnsValue)
+
+  const details = page.getByRole('complementary', { name: 'Details' })
+  expect(await getTypography(details.getByText('Type', { exact: true }))).toEqual(columnsKey)
+  expect(await getTypography(details.locator('.json-viewValue').first())).toEqual(columnsValue)
+})
+
+test('aligns compact selected backgrounds across columns, tree, and source views', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill('{"items":[{"id":1},{"id":2}],"meta":{"page":1}}')
+  await page.getByRole('button', { name: /create project/i }).click()
+
+  await page.getByRole('radio', { name: /^columns$/i }).click()
+  const columnsView = page.getByRole('region', { name: 'Columns view' })
+  await columnsView.locator('.astryx-item').filter({ hasText: 'items' }).click()
+
+  async function getVirtualRowMetrics(selector: string) {
+    return page.locator(selector).first().evaluate((element) => {
+      const virtualRow = element.closest('.virtualRow')
+      const nextVirtualRow = virtualRow?.nextElementSibling
+
+      if (!virtualRow || !nextVirtualRow) {
+        throw new Error('Selected item must have a following virtual row')
+      }
+
+      const itemRect = element.getBoundingClientRect()
+      const rowRect = virtualRow.getBoundingClientRect()
+      const nextRowRect = nextVirtualRow.getBoundingClientRect()
+
+      return {
+        top: itemRect.top - rowRect.top,
+        bottom: nextRowRect.top - itemRect.bottom,
+        height: itemRect.height,
+      }
+    })
+  }
+
+  function expectBalancedVirtualRow(metrics: { top: number; bottom: number }) {
+    expect(Math.abs(metrics.top - metrics.bottom)).toBeLessThanOrEqual(0.5)
+  }
+
+  const columnsMetrics = await getVirtualRowMetrics('.astryx-item[aria-selected="true"]')
+  expectBalancedVirtualRow(columnsMetrics)
+
+  await page.getByRole('radio', { name: /^tree$/i }).click()
+  const treeMetrics = await getVirtualRowMetrics('.json-treeRow[data-selected="true"]')
+  expectBalancedVirtualRow(treeMetrics)
+  expect(treeMetrics.height).toBe(columnsMetrics.height)
+
+  await page.getByRole('radio', { name: /^source$/i }).click()
+  const sourceMetrics = await getVirtualRowMetrics('.json-sourceRow[data-selected="true"]')
+  expectBalancedVirtualRow(sourceMetrics)
+  expect(sourceMetrics.height).toBe(columnsMetrics.height)
+})
 
 test('creates a paste project and restores it after refresh', async ({ page }) => {
   await page.goto('/')

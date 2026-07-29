@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(resolve(process.cwd(), 'src/styles/app.css'), 'utf8')
+const themeCss = readFileSync(resolve(process.cwd(), 'src/theme/jsonHunterTheme.css'), 'utf8')
 
 describe('app.css', () => {
   it('does not define a custom root token theme', () => {
@@ -21,6 +22,14 @@ describe('app.css', () => {
     expect(css).not.toMatch(/\.importLanding-[^{]+\{[^}]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|\d+px)/s)
   })
 
+  it('defines shared JSON semantic colors with Astryx tokens', () => {
+    expect(css).toMatch(/\.json-viewKey\s*\{[^}]*color:\s*var\(--color-text-gray\)/s)
+    expect(css).toMatch(/\.json-viewValue\s*\{[^}]*color:\s*var\(--color-data-orange-4\)/s)
+    expect(css).toMatch(/\.json-viewValue\s*\{[^}]*font-weight:\s*var\(--font-weight-semibold\)/s)
+    expect(css).toMatch(/\.json-viewMeta\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s)
+    expect(themeCss).toMatch(/--color-data-orange-4:\s*light-dark\(/)
+  })
+
   it('limits column row values so keys remain visible', () => {
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*max-width:\s*calc\(var\(--spacing-12\) \* 3\)/s)
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)
@@ -29,6 +38,17 @@ describe('app.css', () => {
   it('uses an emphasized token for tree guide lines', () => {
     expect(css).toMatch(/\.json-treeGuides\s*\{[^}]*--json-tree-guide-color:\s*var\(--color-border-emphasized\)/s)
     expect(css).toMatch(/\.json-treeGuides\[data-has-guides='true'\]::after\s*\{[^}]*var\(--json-tree-guide-color\)/s)
+  })
+
+  it('matches the Item selected treatment in tree and source rows', () => {
+    expect(css).toMatch(
+      /\.json-treeRow\[data-selected='true'\]\s*\{[^}]*background-color:\s*var\(--color-accent-muted\)/s,
+    )
+    expect(css).toMatch(
+      /\.json-sourceRow\[data-selected='true'\]\s*\{[^}]*background-color:\s*var\(--color-accent-muted\)/s,
+    )
+    expect(css).toMatch(/\.json-treeRow\s*\{[^}]*border-radius:\s*var\(--radius-element\)/s)
+    expect(css).toMatch(/\.json-sourceRow\s*\{[^}]*border-radius:\s*var\(--radius-element\)/s)
   })
 
   it('draws tree branch connectors toward the row content', () => {
@@ -46,14 +66,16 @@ describe('app.css', () => {
     )
   })
 
-  it('defines source viewer styles with design tokens', () => {
+  it('keeps source layout token-based and typography semantic', () => {
     expect(css).toContain('.json-sourceRow')
     expect(css).toContain('.json-sourceGuides')
-    expect(css).toContain('.json-sourceToken-key')
-    expect(css).toContain('.json-sourceSummary')
     expect(css).toContain('var(--json-source-guide-width)')
-    expect(css).toMatch(/\.json-sourceToken-[^{]+,[\s\S]*?\.json-sourceSummary\s*\{[^}]*font-size:\s*var\(--font-size-sm\)/s)
-    expect(css).toMatch(/\.json-sourceSummary\s*\{[^}]*color:\s*var\(--color-text-secondary\)/s)
+    expect(css).not.toMatch(
+      /\.json-sourceToken-[^{]+\{[^}]*(?:font-family|font-size|font-weight|line-height)/s,
+    )
+    expect(css).not.toMatch(
+      /\.json-sourceSummary\s*\{[^}]*(?:font-family|font-size|font-weight|line-height)/s,
+    )
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}/)
   })
 })

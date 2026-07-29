@@ -251,6 +251,8 @@ describe('JsonViewer', () => {
     expect(rootDataRow).toBeInTheDocument()
     await user.click(rootDataRow!)
 
+    expect(rootDataRow).toHaveAttribute('data-selected', 'true')
+    expect(rootDataRow).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/data')
     expect(screen.getByRole('button', { name: /^meta 1 field/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^entities 1 field/i })).toBeInTheDocument()
@@ -281,6 +283,34 @@ describe('JsonViewer', () => {
     expect(scrollContent).toHaveStyle({ height: '64px' })
   })
 
+  it('renders table identifiers as keys and distinguishes values from metadata', () => {
+    renderWithProviders(
+      <JsonViewer
+        mode="table"
+        selectedPath={[]}
+        rows={{
+          table: {
+            startIndex: 0,
+            totalCount: 2,
+            rows: [
+              { label: 'row-0', value: '121', valueRole: 'value', path: [0] },
+              { label: 'row-1', value: '2 fields', valueRole: 'metadata', path: [1] },
+            ],
+          },
+        }}
+        onModeChange={() => {}}
+        onSelectPath={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('row-0')).toHaveClass('json-viewKey')
+    expect(screen.getByText('row-0')).toHaveAttribute('data-type', 'label')
+    expect(screen.getByText('121')).toHaveClass('json-viewValue')
+    expect(screen.getByText('121')).toHaveAttribute('data-type', 'supporting')
+    expect(screen.getByText('2 fields')).toHaveClass('json-viewMeta')
+    expect(screen.getByText('2 fields')).toHaveAttribute('data-type', 'supporting')
+  })
+
   it('renders tree rows as key and value columns with collapsible branches', async () => {
     const user = userEvent.setup()
     const rawValue = {
@@ -300,6 +330,12 @@ describe('JsonViewer', () => {
 
     const dataRow = screen.getByText('data').closest('.json-treeRow')
     expect(dataRow).toHaveTextContent('[1 items]')
+    expect(screen.getByText('data')).toHaveClass('json-viewKey')
+    expect(screen.getByText('data')).toHaveAttribute('data-type', 'label')
+    expect(screen.getByText('[1 items]')).toHaveClass('json-viewMeta')
+    expect(screen.getByText('[1 items]')).toHaveAttribute('data-type', 'supporting')
+    expect(screen.getByText('"121"')).toHaveClass('json-viewValue')
+    expect(screen.getByText('"121"')).toHaveAttribute('data-type', 'supporting')
     expect(screen.getByRole('button', { name: 'Collapse data' })).toBeInTheDocument()
     expect(screen.getByText('entities')).toBeInTheDocument()
 
@@ -361,6 +397,8 @@ describe('JsonViewer', () => {
 
     await user.click(screen.getByRole('button', { name: /"data": \[/i }))
 
+    expect(screen.getByRole('button', { name: /"data": \[/i })).toHaveAttribute('data-selected', 'true')
+    expect(screen.getByRole('button', { name: /"data": \[/i })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent('root/data')
     expect(screen.getByRole('button', { name: /"meta": \{/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /"source": "fixture"/i })).toBeInTheDocument()
@@ -384,7 +422,11 @@ describe('JsonViewer', () => {
 
     expect(screen.getByRole('button', { name: 'Collapse data' })).toBeInTheDocument()
     expect(screen.getByText('"data"')).toHaveClass('json-sourceToken-key')
+    expect(screen.getByText('"data"')).toHaveClass('json-viewKey')
+    expect(screen.getByText('"data"')).toHaveAttribute('data-type', 'label')
     expect(screen.getByText('false')).toHaveClass('json-sourceToken-boolean')
+    expect(screen.getByText('false')).toHaveClass('json-viewValue')
+    expect(screen.getByText('false')).toHaveAttribute('data-type', 'supporting')
 
     const activeRow = screen.getByText('"active"').closest('.json-sourceRow')
     const activeGuides = activeRow?.querySelector('.json-sourceGuides')
@@ -554,6 +596,7 @@ describe('JsonViewer', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse data' }))
 
     expect(screen.getByText('// 2 items')).toHaveClass('json-sourceSummary')
+    expect(screen.getByText('// 2 items')).toHaveClass('json-viewMeta')
     expect(screen.getByRole('button', { name: /"data": \[/i })).toHaveTextContent(/"data": \[ … \]\/\/ 2 items/)
     expect(screen.queryByText('"alias"')).not.toBeInTheDocument()
   })

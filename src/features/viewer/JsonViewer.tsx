@@ -64,6 +64,7 @@ export function JsonViewer({
       {mode === 'tree' && (
         <TreeView
           rows={viewerRows.tree}
+          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onWindowChange={(window) => onWindowChange?.('tree', window)}
         />
@@ -78,6 +79,7 @@ export function JsonViewer({
       {mode === 'source' && (
         <SourceView
           rows={viewerRows.source}
+          selectedPath={selectedPath}
           onSelectPath={onSelectPath}
           onWindowChange={(window) => onWindowChange?.('source', window)}
         />

@@ -14,6 +14,7 @@ import { getViewerRow, type ViewerRowWindow } from './viewerRows'
 
 type TreeViewProps = {
   rows: ViewerRowWindow
+  selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
@@ -35,6 +36,10 @@ function pathKey(path: JsonPath) {
   return JSON.stringify(path)
 }
 
+function isSamePath(left: JsonPath, right: JsonPath) {
+  return left.length === right.length && left.every((segment, index) => segment === right[index])
+}
+
 function hasCollapsedAncestor(path: JsonPath, collapsedPaths: Set<string>) {
   for (let length = 1; length < path.length; length += 1) {
     if (collapsedPaths.has(pathKey(path.slice(0, length)))) return true
@@ -42,7 +47,11 @@ function hasCollapsedAncestor(path: JsonPath, collapsedPaths: Set<string>) {
   return false
 }
 
-export function TreeView({ rows, onSelectPath, onWindowChange }: TreeViewProps) {
+function getValueClassName(valueRole: 'value' | 'metadata' | undefined) {
+  return valueRole === 'metadata' ? 'json-viewMeta' : 'json-viewValue'
+}
+
+export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
   const canFilterRows = rows.startIndex === 0 && rows.rows.length === rows.totalCount
   const visibleRows = useMemo(
@@ -82,6 +91,7 @@ export function TreeView({ rows, onSelectPath, onWindowChange }: TreeViewProps) 
               }
 
               const isCollapsed = collapsedPaths.has(pathKey(row.path))
+              const isSelected = isSamePath(selectedPath, row.path)
               const depth = row.depth ?? 0
 
               return (
@@ -89,6 +99,8 @@ export function TreeView({ rows, onSelectPath, onWindowChange }: TreeViewProps) 
                   gap={2}
                   align="center"
                   className="json-treeRow"
+                  aria-selected={isSelected || undefined}
+                  data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return
@@ -125,11 +137,15 @@ export function TreeView({ rows, onSelectPath, onWindowChange }: TreeViewProps) 
                     ) : (
                       <HStack className="json-treeDisclosureSpacer" aria-hidden="true" />
                     )}
-                    <Text type="code" maxLines={1}>
+                    <Text type="label" maxLines={1} className="json-viewKey">
                       {row.label}
                     </Text>
                   </HStack>
-                  <Text type="code" color="secondary" maxLines={1} className="json-treeValue">
+                  <Text
+                    type="supporting"
+                    maxLines={1}
+                    className={`json-treeValue ${getValueClassName(row.valueRole)}`}
+                  >
                     {row.value ?? ''}
                   </Text>
                 </HStack>

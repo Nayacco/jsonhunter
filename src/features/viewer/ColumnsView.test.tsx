@@ -40,7 +40,7 @@ describe('ColumnsView', () => {
             rows: {
               startIndex: 0,
               totalCount: 1,
-              rows: [{ label: 'data', value: '[1 items]', path: ['data'] }],
+              rows: [{ label: 'data', value: '[1 items]', valueRole: 'metadata', path: ['data'] }],
             },
           },
         ]}
@@ -52,6 +52,8 @@ describe('ColumnsView', () => {
 
     expect(row).toHaveAttribute('data-description', '')
     expect(screen.getByTestId('column-row-end-content')).toHaveTextContent('[1 items]')
+    expect(screen.getByText('data')).toHaveClass('json-viewKey')
+    expect(screen.getByText('[1 items]')).toHaveClass('json-viewMeta')
   })
 
   it('marks row values for width-limited truncation', () => {
@@ -76,5 +78,6 @@ describe('ColumnsView', () => {
     )
 
     expect(screen.getByText(longValue)).toHaveClass('json-columnValue')
+    expect(screen.getByText(longValue)).toHaveClass('json-viewValue')
   })
 })
