@@ -9,21 +9,36 @@ describe('AppShell', () => {
   it('exposes the workbench frame regions with accessible labels', () => {
     renderWithProviders(
       <AppShell
+        projectName="orders.json"
+        onOpenJson={() => {}}
         pipeline={<span>Pipeline content</span>}
+        editor={<span>Editor content</span>}
         viewer={<span>Viewer content</span>}
         details={<span>Details content</span>}
       />,
     )
 
     expect(screen.getByRole('main')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: /json hunter navigation/i })).toHaveTextContent(
+      'orders.json',
+    )
+    expect(screen.getByRole('button', { name: /open json/i })).toHaveAttribute(
+      'data-variant',
+      'primary',
+    )
     expect(screen.getByRole('banner', { name: /pipeline/i })).toHaveTextContent('Pipeline content')
+    expect(screen.getByText('Editor content')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /json viewer/i })).toHaveTextContent('Viewer content')
-    expect(screen.getByRole('complementary', { name: /details/i })).toHaveTextContent('Details content')
+    expect(screen.getByRole('complementary', { name: /details/i })).toHaveTextContent(
+      'Details content',
+    )
   })
 
   it('keeps the details panel at a fixed resizable width', () => {
     renderWithProviders(
       <AppShell
+        projectName="orders.json"
+        onOpenJson={() => {}}
         pipeline={<span>Pipeline content</span>}
         viewer={<span>Viewer content</span>}
         details={<span>Details content</span>}
@@ -44,12 +59,17 @@ describe('AppShell', () => {
     fireEvent.pointerMove(window, { clientX: 80 })
     fireEvent.pointerUp(window)
 
-    expect(screen.getByRole('separator', { name: /resize details panel/i })).toHaveAttribute('aria-valuenow', '380')
+    expect(screen.getByRole('separator', { name: /resize details panel/i })).toHaveAttribute(
+      'aria-valuenow',
+      '380',
+    )
   })
 
   it('keeps explicit panel padding between the resize handle and details content', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/AppShell.tsx'), 'utf8')
 
-    expect(source).toContain('<LayoutPanel role="complementary" label="Details" resizable={detailsPanel.props} padding={4}>')
+    expect(source).toContain(
+      '<LayoutPanel role="complementary" label="Details" resizable={detailsPanel.props} padding={4}>',
+    )
   })
 })

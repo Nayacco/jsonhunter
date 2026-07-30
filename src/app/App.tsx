@@ -5,6 +5,7 @@ import type { JsonPath, JsonValue } from '../domain/jsonTypes'
 import type { PipelineNode, PipelineNodeType, ProcessingNode } from '../domain/pipelineTypes'
 import type { ProjectRecord, RawSource } from '../domain/projectTypes'
 import { DetailsPreview } from '../features/details/DetailsPreview'
+import { DeleteNodeDialog } from '../features/pipeline/DeleteNodeDialog'
 import { ErrorBanner } from '../features/pipeline/ErrorBanner'
 import { NodeEditor } from '../features/pipeline/NodeEditor'
 import { PipelineFlow } from '../features/pipeline/PipelineFlow'
@@ -26,9 +27,12 @@ import {
   getRawSizeBytes,
 } from '../persistence/projectRepository'
 import {
+  appendNode,
   createInitialPipeline,
   getExecutionNodes,
-  markDownstreamStale,
+  markExecutionFailure,
+  removeNodeAndDownstream,
+  replaceNode,
   selectActiveNode,
   type PipelineState,
 } from '../pipeline/pipelineModel'
@@ -40,7 +44,6 @@ import { AppShell } from './AppShell'
 
 type DraftNodeState = {
   mode: 'create' | 'edit'
-  baseNodeId: string
   node: ProcessingNode
 }
 
@@ -167,29 +170,28 @@ function detailsFromSummary(path: JsonPath, summary: JsonSummary): DetailsState 
 }
 
 function createDraftPipeline(current: PipelineState, draft: DraftNodeState): PipelineState {
-  const nodes =
+  const pipeline =
     draft.mode === 'edit'
-      ? current.nodes.map((node) => (node.id === draft.node.id ? draft.node : node))
-      : insertNodeAfter(current.nodes, draft.baseNodeId, draft.node)
+      ? replaceNode(current, draft.node)
+      : appendNode(current, draft.node)
 
-  return selectActiveNode(
-    {
-      nodes,
-      activeNodeId: draft.node.id,
-      nodeStatuses: current.nodeStatuses,
-    },
-    draft.node.id,
-  )
-}
-
-function insertNodeAfter(nodes: PipelineNode[], baseNodeId: string, node: ProcessingNode): PipelineNode[] {
-  const baseIndex = nodes.findIndex((candidate) => candidate.id === baseNodeId)
-  const insertAt = baseIndex === -1 ? nodes.length : baseIndex + 1
-  return [...nodes.slice(0, insertAt), node, ...nodes.slice(insertAt)]
+  return selectActiveNode(pipeline, draft.node.id)
 }
 
 function isSupersededWorkerError(error: unknown): boolean {
   return error instanceof Error && /superseded/i.test(error.message)
+}
+
+type WorkerErrorResponse = Extract<WorkerResponse, { type: 'workerError' }>
+
+class PipelineExecutionError extends Error {
+  response: WorkerErrorResponse
+
+  constructor(response: WorkerErrorResponse) {
+    super(response.message)
+    this.name = 'PipelineExecutionError'
+    this.response = response
+  }
 }
 
 export function App() {
@@ -208,6 +210,7 @@ export function App() {
   const [columnWindows, setColumnWindows] = useState<ColumnWindowRequests>({})
   const [error, setError] = useState<string | undefined>()
   const [errorNodeId, setErrorNodeId] = useState<string | undefined>()
+  const [deleteConfirmationNodes, setDeleteConfirmationNodes] = useState<ProcessingNode[]>([])
   const [isHydrating, setIsHydrating] = useState(true)
   const [isProjectLauncherOpen, setIsProjectLauncherOpen] = useState(false)
   const [memoryRiskRequest, setMemoryRiskRequest] = useState<MemoryRiskRequest | undefined>()
@@ -357,6 +360,10 @@ export function App() {
     [activeColumnPath, columnWindows, displayedValue, viewerMode],
   )
   const detailsPreview = details ?? getPlaceholderDetails(activeNode)
+  const displayedSourceNodeLabel =
+    displayedPipeline.nodes.find((node) => node.id === displayedSourceNodeId)?.label ??
+    nodes.find((node) => node.id === displayedSourceNodeId)?.label ??
+    activeNode.label
 
   function getActiveProject() {
     const state = useWorkbenchStore.getState()
@@ -381,14 +388,19 @@ export function App() {
     return response.value
   }
 
-  async function executeNodes(executionNodes: PipelineNode[], sourceNodeId: string): Promise<JsonValue> {
+  async function executeNodes(
+    executionNodes: PipelineNode[],
+    sourceNodeId: string,
+    options: { commitPartialOnError?: boolean } = {},
+  ): Promise<JsonValue> {
     const response = await requestWorker(workerClient, startJob, finishJob, {
       type: 'executePipeline',
       jobId: createJobId('execute'),
       nodes: executionNodes,
+      commitPartialOnError: options.commitPartialOnError,
     })
     if (!response) throw new Error('Pipeline execution was superseded')
-    if (response.type === 'workerError') throw new Error(response.message)
+    if (response.type === 'workerError') throw new PipelineExecutionError(response)
     if (response.type !== 'executePipelineResult') throw new Error(`Unexpected worker response: ${response.type}`)
 
     setDisplayedValue(response.output)
@@ -397,6 +409,36 @@ export function App() {
     setError(undefined)
     setErrorNodeId(undefined)
     return response.output
+  }
+
+  function applyExecutionFailure(
+    pipeline: PipelineState,
+    executionError: PipelineExecutionError,
+  ): boolean {
+    const {
+      failedNodeId,
+      lastSuccessfulNodeId,
+      lastSuccessfulOutput,
+      lastSuccessfulSummary,
+    } = executionError.response
+    if (
+      !failedNodeId ||
+      !lastSuccessfulNodeId ||
+      lastSuccessfulOutput === undefined ||
+      !lastSuccessfulSummary
+    ) {
+      return false
+    }
+
+    useWorkbenchStore.setState(
+      markExecutionFailure(pipeline, failedNodeId, lastSuccessfulNodeId),
+    )
+    setDisplayedValue(lastSuccessfulOutput)
+    setDisplayedSourceNodeId(lastSuccessfulNodeId)
+    setDetails(detailsFromSummary(selectedPath, lastSuccessfulSummary))
+    setError(executionError.message)
+    setErrorNodeId(failedNodeId)
+    return true
   }
 
   async function executeSavedPipelineToNode(nodeId: string): Promise<void> {
@@ -410,7 +452,14 @@ export function App() {
     )
     useWorkbenchStore.setState(pipeline)
     const executionNodes = getExecutionNodes(pipeline)
-    await executeNodes(executionNodes, nodeId)
+    try {
+      await executeNodes(executionNodes, nodeId, { commitPartialOnError: true })
+    } catch (nextError) {
+      if (nextError instanceof PipelineExecutionError && applyExecutionFailure(pipeline, nextError)) {
+        return
+      }
+      throw nextError
+    }
   }
 
   function requestMemoryRiskConfirmation(rawJsonText: string): Promise<boolean> {
@@ -515,6 +564,7 @@ export function App() {
 
   async function handleSelectNode(id: string) {
     if (!hasLoadedRaw) return
+    if (draft?.node.id === id) return
 
     setDraft(undefined)
     setDraftPreviewSnapshot(undefined)
@@ -530,7 +580,7 @@ export function App() {
   function handleEditNode(id: string) {
     const node = nodes.find((candidate): candidate is ProcessingNode => candidate.id === id && candidate.type !== 'raw')
     if (!node) return
-    setDraft({ mode: 'edit', baseNodeId: id, node })
+    setDraft({ mode: 'edit', node })
     setDraftPreviewSnapshot({
       value: displayedValue,
       sourceNodeId: displayedSourceNodeId,
@@ -546,7 +596,7 @@ export function App() {
     if (!hasLoadedRaw || draft) return
 
     const node = createDraftNode(type)
-    setDraft({ mode: 'create', baseNodeId: activeNodeId, node })
+    setDraft({ mode: 'create', node })
     setDraftPreviewSnapshot({
       value: displayedValue,
       sourceNodeId: displayedSourceNodeId,
@@ -579,6 +629,36 @@ export function App() {
 
     const nextDraft = { ...draft, node: applyEditorValue(draft.node, editorValue) }
     const draftPipeline = createDraftPipeline(savedPipeline, nextDraft)
+    const editedNodeIndex = draftPipeline.nodes.findIndex((node) => node.id === nextDraft.node.id)
+    const hasDownstream =
+      nextDraft.mode === 'edit' && editedNodeIndex < draftPipeline.nodes.length - 1
+
+    if (hasDownstream) {
+      const finalNodeId = draftPipeline.nodes.at(-1)?.id ?? nextDraft.node.id
+      const fullPipeline = selectActiveNode(draftPipeline, finalNodeId)
+      try {
+        await executeNodes(getExecutionNodes(fullPipeline), finalNodeId, {
+          commitPartialOnError: true,
+        })
+        useWorkbenchStore.setState(fullPipeline)
+      } catch (nextError) {
+        if (
+          !(nextError instanceof PipelineExecutionError) ||
+          !applyExecutionFailure(fullPipeline, nextError)
+        ) {
+          setError(nextError instanceof Error ? nextError.message : String(nextError))
+          setErrorNodeId(nextDraft.node.id)
+          return
+        }
+      }
+
+      setDraft(undefined)
+      setDraftPreviewSnapshot(undefined)
+      setLatestDraftOutput(undefined)
+      setEditorValue('')
+      return
+    }
+
     let output = latestDraftOutput?.nodeId === nextDraft.node.id && latestDraftOutput.editorValue === editorValue
       ? latestDraftOutput.value
       : undefined
@@ -593,7 +673,7 @@ export function App() {
       }
     }
 
-    const savedPipelineAfterSave = markDownstreamStale(draftPipeline, nextDraft.node.id)
+    const savedPipelineAfterSave = selectActiveNode(draftPipeline, nextDraft.node.id)
     useWorkbenchStore.setState(savedPipelineAfterSave)
     setDisplayedValue(output)
     setDisplayedSourceNodeId(nextDraft.node.id)
@@ -602,6 +682,42 @@ export function App() {
     setLatestDraftOutput(undefined)
     setError(undefined)
     setErrorNodeId(undefined)
+  }
+
+  function handleRequestDeleteNode(id: string) {
+    const nodeIndex = nodes.findIndex((node) => node.id === id)
+    if (nodeIndex <= 0) return
+
+    const nodesToDelete = nodes.slice(nodeIndex) as ProcessingNode[]
+    if (nodesToDelete.length > 1) {
+      setDeleteConfirmationNodes(nodesToDelete)
+      return
+    }
+
+    void handleDeleteNodeAndDownstream(id)
+  }
+
+  async function handleDeleteNodeAndDownstream(id: string) {
+    const result = removeNodeAndDownstream(savedPipeline, id)
+    setDeleteConfirmationNodes([])
+    setDraft(undefined)
+    setDraftPreviewSnapshot(undefined)
+    setLatestDraftOutput(undefined)
+    useWorkbenchStore.setState(result.state)
+
+    try {
+      await executeNodes(getExecutionNodes(result.state), result.state.activeNodeId, {
+        commitPartialOnError: true,
+      })
+    } catch (nextError) {
+      if (
+        !(nextError instanceof PipelineExecutionError) ||
+        !applyExecutionFailure(result.state, nextError)
+      ) {
+        setError(nextError instanceof Error ? nextError.message : String(nextError))
+        setErrorNodeId(result.state.activeNodeId)
+      }
+    }
   }
 
   function handleCancel() {
@@ -613,6 +729,7 @@ export function App() {
     setDraft(undefined)
     setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
+    setDeleteConfirmationNodes([])
     setEditorValue(getNodeDraftValue(savedActiveNode))
     setError(undefined)
     setErrorNodeId(undefined)
@@ -651,9 +768,15 @@ export function App() {
   }
 
   function handleOpenProjectLauncher() {
+    if (draftPreviewSnapshot) {
+      setDisplayedValue(draftPreviewSnapshot.value)
+      setDisplayedSourceNodeId(draftPreviewSnapshot.sourceNodeId)
+      setDetails(draftPreviewSnapshot.details)
+    }
     setDraft(undefined)
     setDraftPreviewSnapshot(undefined)
     setLatestDraftOutput(undefined)
+    setDeleteConfirmationNodes([])
     setError(undefined)
     setErrorNodeId(undefined)
     setIsProjectLauncherOpen(true)
@@ -727,69 +850,63 @@ export function App() {
       nodes={displayedPipeline.nodes}
       activeNodeId={displayedPipeline.activeNodeId}
       nodeStatuses={displayedNodeStatuses}
+      draftNodeId={draft?.node.id}
+      isAddDisabled={draft !== undefined}
       onSelectNode={(id) => void handleSelectNode(id)}
       onEditNode={handleEditNode}
+      onDeleteNode={handleRequestDeleteNode}
       onAddNode={handleAddNode}
-      onOpenAnotherJson={handleOpenProjectLauncher}
     />
   )
 
-  const viewerPane = (
+  const editorPane = draft ? (
     <>
       <ErrorBanner message={error} />
-      {draft ? (
-        <>
-          <NodeEditor
-            language={language}
-            value={editorValue}
-            onChange={(nextValue) => {
-              setEditorValue(nextValue)
-              setLatestDraftOutput(undefined)
-            }}
-            onRun={() => void handleRun()}
-            onSave={() => void handleSave()}
-            onCancel={handleCancel}
-          />
-          {displayedValue !== undefined && displayedSourceNodeId === draft.node.id && (
-            <JsonViewer
-              mode={viewerMode}
-              value={displayedValue}
-              selectedPath={selectedPath}
-              rows={viewerRows}
-              columnView={columnView}
-              onModeChange={setViewerMode}
-              onSelectPath={setSelectedPath}
-              onWindowChange={handleViewerWindowChange}
-              onColumnWindowChange={handleColumnWindowChange}
-            />
-          )}
-        </>
-      ) : (
-        <JsonViewer
-          mode={viewerMode}
-          value={displayedValue}
-          selectedPath={selectedPath}
-          rows={viewerRows}
-          columnView={columnView}
-          onModeChange={setViewerMode}
-          onSelectPath={setSelectedPath}
-          onWindowChange={handleViewerWindowChange}
-          onColumnWindowChange={handleColumnWindowChange}
-        />
-      )}
+      <NodeEditor
+        title={`${draft.mode === 'create' ? 'New' : 'Edit'} ${draft.node.label}`}
+        language={language}
+        value={editorValue}
+        onChange={(nextValue) => {
+          setEditorValue(nextValue)
+          setLatestDraftOutput(undefined)
+        }}
+        onRun={() => void handleRun()}
+        onSave={() => void handleSave()}
+        onCancel={handleCancel}
+      />
+    </>
+  ) : undefined
+
+  const viewerPane = (
+    <>
+      <ErrorBanner message={draft ? undefined : error} />
+      <JsonViewer
+        mode={viewerMode}
+        value={displayedValue}
+        selectedPath={selectedPath}
+        rows={viewerRows}
+        columnView={columnView}
+        onModeChange={setViewerMode}
+        onSelectPath={setSelectedPath}
+        onWindowChange={handleViewerWindowChange}
+        onColumnWindowChange={handleColumnWindowChange}
+      />
     </>
   )
 
   const loadedWorkbench = (
     <AppShell
+      projectName={project?.name ?? 'Untitled JSON'}
+      onOpenJson={handleOpenProjectLauncher}
       pipeline={pipelinePane}
+      editor={editorPane}
       viewer={viewerPane}
       details={
         <DetailsPreview
           path={detailsPreview.path}
           type={detailsPreview.type}
           valuePreview={detailsPreview.valuePreview}
-          sourceNodeLabel={activeNode.label}
+          sourceNodeLabel={displayedSourceNodeLabel}
         />
       }
     />
@@ -849,6 +966,15 @@ export function App() {
         warningLimitMiB={memoryRiskRequest?.warningLimitMiB ?? Math.round(RAW_WARNING_LIMIT_BYTES / 1024 / 1024)}
         onCancel={() => resolveMemoryRiskConfirmation(false)}
         onConfirm={() => resolveMemoryRiskConfirmation(true)}
+      />
+      <DeleteNodeDialog
+        isOpen={deleteConfirmationNodes.length > 0}
+        nodes={deleteConfirmationNodes}
+        onCancel={() => setDeleteConfirmationNodes([])}
+        onConfirm={() => {
+          const nodeId = deleteConfirmationNodes[0]?.id
+          if (nodeId) void handleDeleteNodeAndDownstream(nodeId)
+        }}
       />
     </>
   )

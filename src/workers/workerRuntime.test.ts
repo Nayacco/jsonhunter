@@ -75,6 +75,92 @@ describe('JsonWorkerRuntime', () => {
     expect(details).toMatchObject({ type: 'detailsResult', value: 4 })
   })
 
+  it('returns and commits the last successful output when a downstream node fails', async () => {
+    const runtime = new JsonWorkerRuntime()
+    await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })
+
+    const response = await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'run-with-failure',
+      commitPartialOnError: true,
+      nodes: [
+        { id: 'raw', type: 'raw', label: 'Raw' },
+        {
+          id: 'js-1',
+          type: 'js',
+          label: 'Increment',
+          code: 'export default input => ({ count: input.count + 1 })',
+        },
+        {
+          id: 'js-2',
+          type: 'js',
+          label: 'Broken',
+          code: 'export default () => { throw new Error("Broken downstream") }',
+        },
+        {
+          id: 'js-3',
+          type: 'js',
+          label: 'Never runs',
+          code: 'export default input => ({ count: input.count + 100 })',
+        },
+      ],
+    })
+
+    expect(response).toMatchObject({
+      type: 'workerError',
+      jobId: 'run-with-failure',
+      message: 'Broken downstream',
+      failedNodeId: 'js-2',
+      lastSuccessfulNodeId: 'js-1',
+      lastSuccessfulOutput: { count: 2 },
+      lastSuccessfulSummary: { type: 'object', childCount: 1 },
+    })
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 2 })
+  })
+
+  it('keeps the previous committed output when a preview run fails', async () => {
+    const runtime = new JsonWorkerRuntime()
+    await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })
+    await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'committed',
+      nodes: [
+        { id: 'raw', type: 'raw', label: 'Raw' },
+        {
+          id: 'js-committed',
+          type: 'js',
+          label: 'Committed',
+          code: 'export default () => ({ count: 9 })',
+        },
+      ],
+    })
+
+    await runtime.handle({
+      type: 'executePipeline',
+      jobId: 'preview-failure',
+      nodes: [
+        { id: 'raw', type: 'raw', label: 'Raw' },
+        {
+          id: 'js-preview',
+          type: 'js',
+          label: 'Preview',
+          code: 'export default input => ({ count: input.count + 1 })',
+        },
+        {
+          id: 'js-failure',
+          type: 'js',
+          label: 'Failure',
+          code: 'export default () => { throw new Error("Preview failed") }',
+        },
+      ],
+    })
+
+    const details = await runtime.handle({ type: 'getDetails', jobId: 'details', path: ['count'] })
+    expect(details).toMatchObject({ type: 'detailsResult', value: 9 })
+  })
+
   it('restarts each pipeline run from immutable raw JSON even when JS mutates input in place', async () => {
     const runtime = new JsonWorkerRuntime()
     await runtime.handle({ type: 'parseRaw', jobId: 'parse', rawJsonText: '{"count":1}' })

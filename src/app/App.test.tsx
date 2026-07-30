@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProjectRecord } from '../domain/projectTypes'
@@ -177,6 +177,25 @@ describe('App', () => {
     await user.type(input, 'items{Enter}')
   }
 
+  async function addStep(
+    user: ReturnType<typeof userEvent.setup>,
+    type: 'js' | 'duckdb',
+  ) {
+    await user.click(screen.getByRole('button', { name: /add step/i }))
+    await user.click(
+      screen.getByRole('menuitem', {
+        name: type === 'js' ? /add js/i : /add duckdb/i,
+      }),
+    )
+  }
+
+  async function editStep(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.click(
+      screen.getByRole('button', { name: new RegExp(`more actions for ${label}`, 'i') }),
+    )
+    await user.click(screen.getByRole('menuitem', { name: /edit step/i }))
+  }
+
   it('shows the full landing page without empty workbench regions', async () => {
     renderWithProviders(<App />)
 
@@ -190,7 +209,7 @@ describe('App', () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    await user.click(screen.getByRole('button', { name: /open json/i }))
     expect(await screen.findByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
     await user.click(screen.getByRole('button', { name: /back to current project/i }))
 
@@ -211,7 +230,7 @@ describe('App', () => {
       return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
     })
 
-    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    await user.click(screen.getByRole('button', { name: /open json/i }))
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{broken' },
     })
@@ -313,7 +332,7 @@ describe('App', () => {
     await navigateTableToItems(user)
     expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /open another json/i }))
+    await user.click(screen.getByRole('button', { name: /open json/i }))
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":2,"name":"Lin"}]}' },
     })
@@ -338,11 +357,11 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /create project/i })).toBeNull()
   })
 
-  it('marks downstream nodes stale after saving a middle node', async () => {
+  it('reruns downstream nodes after saving a middle node', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await screen.findByText('{items}')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
@@ -350,7 +369,7 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
     })
 
-    await user.click(screen.getByRole('button', { name: /add duckdb/i }))
+    await addStep(user, 'duckdb')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await screen.findByText('{items}')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
@@ -358,22 +377,104 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
     })
 
-    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
+    await editStep(user, 'JS 1')
 
     const editor = await screen.findByTestId('monaco-editor')
     await user.clear(editor)
     await user.type(editor, 'export default input => input + 1')
-    await user.click(screen.getByRole('button', { name: /^run$/i }))
+    const executionCountBeforeSave = workerRequest.mock.calls.filter(
+      ([request]) => request.type === 'executePipeline',
+    ).length
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
-    expect(screen.getByRole('button', { name: /duckdb 1/i })).toHaveTextContent(/stale/i)
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
+    })
+    const executionRequestsAfterSave = workerRequest.mock.calls
+      .map(([request]) => request)
+      .filter((request) => request.type === 'executePipeline')
+    expect(executionRequestsAfterSave).toHaveLength(executionCountBeforeSave + 1)
+    expect(executionRequestsAfterSave.at(-1)).toEqual(
+      expect.objectContaining({
+        type: 'executePipeline',
+        nodes: [
+          expect.objectContaining({ id: 'raw' }),
+          expect.objectContaining({ id: 'js-1' }),
+          expect.objectContaining({ id: 'duckdb-1' }),
+        ],
+      }),
+    )
+    expect(screen.getByRole('button', { name: /duckdb 1.*active/i })).toBeVisible()
+  })
+
+  it('keeps an edited node and exposes the last successful output when downstream rerun fails', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+
+    for (const type of ['js', 'duckdb', 'js'] as const) {
+      await addStep(user, type)
+      await user.click(screen.getByRole('button', { name: /^save$/i }))
+      await waitFor(() => expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull())
+    }
+
+    await editStep(user, 'JS 1')
+    fireEvent.change(await screen.findByTestId('monaco-editor'), {
+      target: { value: 'export default input => ({ ...input, edited: true })' },
+    })
+
+    const defaultWorkerImplementation = workerRequest.getMockImplementation()
+    workerRequest.mockImplementation(async (request: any) => {
+      if (
+        request.type === 'executePipeline' &&
+        request.nodes.some(
+          (node: { type: string; code?: string }) =>
+            node.type === 'js' && node.code?.includes('edited: true'),
+        )
+      ) {
+        return {
+          type: 'workerError',
+          jobId: request.jobId,
+          message: 'DuckDB downstream failed',
+          failedNodeId: 'duckdb-1',
+          lastSuccessfulNodeId: 'js-1',
+          lastSuccessfulOutput: { items: [{ id: 1, name: 'Recovered' }] },
+          lastSuccessfulSummary: {
+            type: 'object',
+            label: 'Object(1)',
+            childCount: 1,
+            preview: '{items}',
+          },
+        }
+      }
+      if (!defaultWorkerImplementation) throw new Error('Expected default worker implementation')
+      return defaultWorkerImplementation(request)
+    })
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+    expect(await screen.findByText(/duckdb downstream failed/i)).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /js 1.*active/i })).toBeVisible()
+    expect(
+      within(screen.getByRole('button', { name: /duckdb 1.*error/i })).getByText('DuckDB', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    expect(
+      within(screen.getByRole('button', { name: /js 2.*blocked/i })).getByText('JS', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Recovered' })).toBeVisible()
   })
 
   it('runs processing nodes through the worker and keeps the last successful preview visible', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
@@ -461,7 +562,7 @@ describe('App', () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /js 1/i })).toBeVisible()
@@ -473,11 +574,88 @@ describe('App', () => {
     ).toBe(true)
   })
 
+  it('keeps the current viewer mounted while a new step is being edited', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+    await user.click(screen.getByRole('radio', { name: /^table$/i }))
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
+
+    await addStep(user, 'js')
+
+    expect(await screen.findByTestId('monaco-editor')).toBeVisible()
+    expect(screen.getByRole('radio', { name: /^table$/i })).toBeChecked()
+    expect(screen.getByRole('textbox', { name: 'Table navigation path' })).toHaveValue('items')
+    expect(screen.getByRole('cell', { name: 'Ada' })).toBeVisible()
+  })
+
+  it('appends new steps at the pipeline end even when an earlier node is selected', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+    await addStep(user, 'js')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
+    })
+
+    await user.click(screen.getByRole('button', { name: /raw.*active|raw.*ready/i }))
+    await addStep(user, 'js')
+    await user.click(screen.getByRole('button', { name: /^run$/i }))
+
+    const executionRequests = workerRequest.mock.calls
+      .map(([request]) => request)
+      .filter((request) => request.type === 'executePipeline')
+    expect(executionRequests.at(-1)?.nodes.map((node: { id: string }) => node.id)).toEqual([
+      'raw',
+      'js-1',
+      'js-2',
+    ])
+  })
+
+  it('confirms and lists every downstream node before a cascading delete', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+    await addStep(user, 'js')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull())
+    await addStep(user, 'duckdb')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull())
+
+    await user.click(screen.getByRole('button', { name: /more actions for js 1/i }))
+    await user.click(screen.getByRole('menuitem', { name: /delete step/i }))
+
+    expect(await screen.findByRole('heading', { name: /delete js 1 and downstream steps/i })).toBeVisible()
+    expect(screen.getByText(/js 1, duckdb 1/i)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /delete 2 steps/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /js 1/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /duckdb 1/i })).toBeNull()
+    })
+    expect(screen.getByRole('button', { name: /raw.*active/i })).toBeVisible()
+  })
+
+  it('deletes the final processing node without opening a confirmation dialog', async () => {
+    const user = userEvent.setup()
+    await createPasteProject(user)
+    await addStep(user, 'js')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull())
+
+    await user.click(screen.getByRole('button', { name: /more actions for js 1/i }))
+    await user.click(screen.getByRole('menuitem', { name: /delete step/i }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /js 1/i })).toBeNull())
+    expect(screen.getByRole('button', { name: /raw.*active/i })).toBeVisible()
+  })
+
   it('cancels an unsaved draft processing node without persisting it', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     expect(await screen.findByRole('button', { name: /js 1/i })).toBeVisible()
     await user.click(screen.getByRole('button', { name: /^cancel$/i }))
 
@@ -493,7 +671,7 @@ describe('App', () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
@@ -555,7 +733,7 @@ describe('App', () => {
     await navigateTableToItems(user)
     expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await navigateTableToItems(user)
     expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
@@ -570,17 +748,17 @@ describe('App', () => {
       ),
     ).toBe(true)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await user.click(screen.getByRole('button', { name: /^save$/i }))
-    await screen.findByRole('button', { name: /js 1/i })
+    await screen.findByRole('button', { name: /^js 1, js,/i })
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
     })
     await navigateTableToItems(user)
     expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
 
-    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
+    await editStep(user, 'JS 1')
     const editor = await screen.findByTestId('monaco-editor')
     fireEvent.change(editor, {
       target: { value: 'export default input => ({ items: [{ id: 1, name: "Hopper" }] })' },
@@ -608,7 +786,7 @@ describe('App', () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /add js/i }))
+    await addStep(user, 'js')
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
     await navigateTableToItems(user)

@@ -5,6 +5,13 @@ async function navigateTable(page: Page, path: string) {
   await page.getByRole('button', { name: 'Navigate table' }).click()
 }
 
+async function addStep(page: Page, type: 'js' | 'duckdb') {
+  await page.getByRole('button', { name: 'Add step' }).click()
+  await page
+    .getByRole('menuitem', { name: type === 'js' ? 'Add JS' : 'Add DuckDB' })
+    .click()
+}
+
 async function getTypography(locator: Locator) {
   return locator.evaluate((element) => {
     const style = getComputedStyle(element)
@@ -246,7 +253,7 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
   await expect(page.getByRole('complementary', { name: /details/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: /make complex json feel navigable/i })).toHaveCount(0)
 
-  await page.getByRole('button', { name: /add js/i }).click()
+  await addStep(page, 'js')
   await expect(page.getByRole('button', { name: /^run$/i })).toBeVisible()
   await expect(page.getByRole('button', { name: /^save$/i })).toBeVisible()
 
@@ -265,9 +272,37 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
   await page.reload()
 
   await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
-  await expect(page.getByRole('button', { name: /js 1/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^js 1, js,/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Table' })).toBeVisible()
   await expect(page.getByRole('button', { name: /^save$/i })).toHaveCount(0)
+})
+
+test('inserts the step editor without replacing the current viewer', async ({ page }) => {
+  await page.goto('/')
+
+  await page
+    .getByLabel(/paste json/i)
+    .fill('{"items":[{"id":1,"name":"Ada"}],"meta":{"page":1}}')
+  await page.getByRole('button', { name: /create project/i }).click()
+  await page.getByRole('radio', { name: /^table$/i }).click()
+  await navigateTable(page, 'items')
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+
+  await addStep(page, 'js')
+
+  const editor = page.locator('.workbench-editorSlot')
+  await expect(editor).toHaveAttribute('data-open', 'true')
+  await expect(page.getByRole('region', { name: 'JSON viewer' })).toBeVisible()
+  await expect(page.getByRole('radio', { name: /^table$/i })).toBeChecked()
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Open JSON' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add step' })).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(editor).toHaveAttribute('data-open', 'false')
+  await expect(page.getByRole('radio', { name: /^table$/i })).toBeChecked()
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
 })
 
 test('shows a restore prompt after refreshing an oversized pasted project', async ({ page }) => {
@@ -418,7 +453,7 @@ test('drops unsaved draft processing nodes after refresh', async ({ page }) => {
   await page.getByRole('button', { name: /create project/i }).click()
   await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
 
-  await page.getByRole('button', { name: /add js/i }).click()
+  await addStep(page, 'js')
   await expect(page.getByRole('button', { name: /js 1/i })).toBeVisible()
 
   await page.reload()

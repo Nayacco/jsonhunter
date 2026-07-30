@@ -58,10 +58,30 @@ export class JsonWorkerRuntime {
       if (request.type === 'executePipeline') {
         let output = this.rawValue === undefined ? undefined : cloneJsonValue(this.rawValue)
         if (output === undefined) throw new Error('Raw JSON is not loaded')
+        let lastSuccessfulNodeId = 'raw'
+
         for (const node of request.nodes) {
           if (node.type === 'raw') continue
-          if (node.type === 'js') output = await executeJsNode(node.code, output)
-          if (node.type === 'duckdb') output = await executeDuckDbNode(node.sql, output)
+          try {
+            if (node.type === 'js') output = await executeJsNode(node.code, output)
+            if (node.type === 'duckdb') output = await executeDuckDbNode(node.sql, output)
+            lastSuccessfulNodeId = node.id
+          } catch (error) {
+            const lastSuccessfulOutput = cloneJsonValue(output)
+            if (request.commitPartialOnError && !isStale(request.jobId, options)) {
+              this.currentValue = cloneJsonValue(lastSuccessfulOutput)
+            }
+            return {
+              type: 'workerError',
+              jobId: request.jobId,
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              failedNodeId: node.id,
+              lastSuccessfulNodeId,
+              lastSuccessfulOutput,
+              lastSuccessfulSummary: summarizeJson(lastSuccessfulOutput),
+            }
+          }
         }
         if (!isStale(request.jobId, options)) {
           this.currentValue = cloneJsonValue(output)

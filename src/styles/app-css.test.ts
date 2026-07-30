@@ -141,4 +141,25 @@ describe('app.css', () => {
     )
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}/)
   })
+
+  it('animates the inline editor and preserves a reduced-motion path', () => {
+    expect(css).toMatch(
+      /\.workbench-editorSlot\s*\{[^}]*grid-template-rows:\s*0fr[^}]*var\(--duration-medium-min\)/s,
+    )
+    expect(css).toMatch(
+      /\.workbench-editorSlot\[data-open='true'\]\s*\{[^}]*grid-template-rows:\s*1fr/s,
+    )
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*\.workbench-editorSlot\s*\{[^}]*transition:\s*none/s,
+    )
+  })
+
+  it('draws token-based directional connectors between pipeline nodes', () => {
+    expect(css).toMatch(
+      /\.pipelineFlow-connector::before\s*\{[^}]*border-block-start:\s*var\(--border-width\) solid var\(--color-border-emphasized\)/s,
+    )
+    expect(css).toMatch(
+      /\.pipelineFlow-connector::after\s*\{[^}]*border-inline-end:\s*var\(--border-width\) solid var\(--color-border-emphasized\)/s,
+    )
+  })
 })
