@@ -1,6 +1,8 @@
 import { Section } from '@astryxdesign/core/Section'
 import { HStack } from '@astryxdesign/core/Stack'
 import { Toolbar } from '@astryxdesign/core/Toolbar'
+import { useState } from 'react'
+import { formatPath } from '../../domain/jsonPath'
 import type { JsonPath, JsonValue } from '../../domain/jsonTypes'
 import type { ViewerMode } from '../../domain/viewTypes'
 import { Breadcrumb } from './Breadcrumb'
@@ -34,6 +36,7 @@ export function JsonViewer({
   onWindowChange,
   onColumnWindowChange,
 }: JsonViewerProps) {
+  const [tableNavigationAddress, setTableNavigationAddress] = useState('')
   const viewerRows = getViewerRows(rows)
   const columns = columnView ?? [
     {
@@ -43,6 +46,11 @@ export function JsonViewer({
       rows: viewerRows.columns,
     },
   ]
+
+  function openArrayInTable(path: JsonPath) {
+    setTableNavigationAddress(formatPath(path))
+    onModeChange('table')
+  }
 
   return (
     <Section className={mode === 'table' ? 'json-viewerTable' : undefined}>
@@ -60,6 +68,7 @@ export function JsonViewer({
         <ColumnsView
           columns={columns}
           onSelectPath={onSelectPath}
+          onOpenArrayInTable={openArrayInTable}
           onColumnWindowChange={onColumnWindowChange}
         />
       )}
@@ -68,12 +77,14 @@ export function JsonViewer({
           rows={viewerRows.tree}
           selectedPath={selectedPath}
           onSelectPath={onSelectPath}
+          onOpenArrayInTable={openArrayInTable}
           onWindowChange={(window) => onWindowChange?.('tree', window)}
         />
       )}
       {mode === 'table' && (
         <TableView
           value={value}
+          initialAddress={tableNavigationAddress}
           onSelectPath={onSelectPath}
         />
       )}
@@ -82,6 +93,7 @@ export function JsonViewer({
           rows={viewerRows.source}
           selectedPath={selectedPath}
           onSelectPath={onSelectPath}
+          onOpenArrayInTable={openArrayInTable}
           onWindowChange={(window) => onWindowChange?.('source', window)}
         />
       )}

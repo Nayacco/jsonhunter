@@ -6,12 +6,14 @@ import { Section } from '@astryxdesign/core/Section'
 import { HStack, VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
+import { ArrayTableAction, isArrayViewerRow } from './ArrayTableAction'
 import { VirtualRows } from './VirtualRows'
 import { getViewerRow, type ViewerColumn } from './viewerRows'
 
 type ColumnsViewProps = {
   columns: ViewerColumn[]
   onSelectPath(path: JsonPath): void
+  onOpenArrayInTable(path: JsonPath): void
   onColumnWindowChange?(path: JsonPath, window: { startIndex: number; count: number }): void
 }
 
@@ -27,7 +29,12 @@ function getValueClassName(valueRole: 'value' | 'metadata' | undefined) {
   return valueRole === 'metadata' ? 'json-viewMeta' : 'json-viewValue'
 }
 
-export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: ColumnsViewProps) {
+export function ColumnsView({
+  columns,
+  onSelectPath,
+  onOpenArrayInTable,
+  onColumnWindowChange,
+}: ColumnsViewProps) {
   return (
     <Section>
       <VStack gap={2} as="section" aria-label="Columns view">
@@ -67,29 +74,43 @@ export function ColumnsView({ columns, onSelectPath, onColumnWindowChange }: Col
                         return <Item label={`Loading row ${index + 1}`} density="compact" isDisabled />
                       }
 
+                      const isArrayRow = isArrayViewerRow(row)
+
                       return (
-                        <Item
-                          className="json-selectableRow"
-                          label={
-                            <Text type="label" maxLines={1} className="json-viewKey">
-                              {row.label}
-                            </Text>
-                          }
-                          endContent={
-                            <Text
-                              type="supporting"
-                              display="block"
-                              maxLines={1}
-                              className={`json-columnValue ${getValueClassName(row.valueRole)}`}
-                            >
-                              {row.value ?? index + 1}
-                            </Text>
-                          }
-                          density="compact"
-                          labelLines={1}
-                          isSelected={isSamePath(column.selectedChildPath, row.path)}
-                          onClick={() => onSelectPath(row.path)}
-                        />
+                        <HStack
+                          gap={1}
+                          align="center"
+                          className={`json-selectableRow json-columnRow${isArrayRow ? ' json-arrayRow' : ''}`}
+                        >
+                          <Item
+                            className="json-columnRowItem"
+                            label={
+                              <Text type="label" maxLines={1} className="json-viewKey">
+                                {row.label}
+                              </Text>
+                            }
+                            endContent={
+                              <Text
+                                type="supporting"
+                                display="block"
+                                maxLines={1}
+                                className={`json-columnValue ${getValueClassName(row.valueRole)}${
+                                  isArrayRow ? ' json-arrayRowValue' : ''
+                                }`}
+                              >
+                                {row.value ?? index + 1}
+                              </Text>
+                            }
+                            density="compact"
+                            labelLines={1}
+                            isSelected={isSamePath(column.selectedChildPath, row.path)}
+                            onClick={() => onSelectPath(row.path)}
+                          />
+                          <ArrayTableAction
+                            row={row}
+                            onOpenArrayInTable={onOpenArrayInTable}
+                          />
+                        </HStack>
                       )
                     }}
                   />

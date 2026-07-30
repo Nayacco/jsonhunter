@@ -12,12 +12,13 @@ import { VirtualTable } from './VirtualTable'
 
 type TableViewProps = {
   value: JsonValue | undefined
+  initialAddress?: string
   onSelectPath(path: JsonPath): void
 }
 
-export function TableView({ value, onSelectPath }: TableViewProps) {
-  const [inputAddress, setInputAddress] = useState('')
-  const [committedAddress, setCommittedAddress] = useState('')
+export function TableView({ value, initialAddress = '', onSelectPath }: TableViewProps) {
+  const [inputAddress, setInputAddress] = useState(initialAddress)
+  const [committedAddress, setCommittedAddress] = useState(initialAddress)
   const result = useMemo(
     () => (value === undefined ? undefined : resolveTableModel(value, committedAddress)),
     [committedAddress, value],

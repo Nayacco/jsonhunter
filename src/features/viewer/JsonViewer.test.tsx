@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -48,6 +48,67 @@ describe('JsonViewer', () => {
     await user.click(screen.getByRole('radio', { name: /table/i }))
     expect(mode).toBe('table')
   })
+
+  it.each(['columns', 'tree', 'source'] as const)(
+    'opens an array row from %s view in Table without changing the selected path',
+    async (initialMode) => {
+      const user = userEvent.setup()
+      const selectedPaths: (string | number)[][] = []
+      const rawValue = {
+        'data.key': {
+          rows: [{ id: 1, name: 'Ada' }],
+        },
+      }
+
+      function Harness() {
+        const [mode, setMode] = useState<'columns' | 'tree' | 'table' | 'source'>(initialMode)
+        const [selectedPath, setSelectedPath] = useState<(string | number)[]>(['data.key'])
+
+        return (
+          <JsonViewer
+            mode={mode}
+            value={rawValue}
+            selectedPath={selectedPath}
+            rows={deriveViewerRowsFromJson(rawValue, selectedPath, {
+              source: { startIndex: 0, count: 32 },
+              tree: { startIndex: 0, count: 32 },
+            })}
+            columnView={deriveColumnViewFromJson(rawValue, selectedPath)}
+            onModeChange={setMode}
+            onSelectPath={(path) => {
+              selectedPaths.push(path)
+              setSelectedPath(path)
+            }}
+          />
+        )
+      }
+
+      renderWithProviders(<Harness />)
+
+      const tableAction = screen.getByRole('button', {
+        name: 'Open ["data.key"].rows in Table view',
+      })
+      const arrayRow = tableAction.closest<HTMLElement>('.json-arrayRow')
+
+      expect(arrayRow).toBeInTheDocument()
+      if (initialMode !== 'source') {
+        expect(within(arrayRow!).getByText('[1 items]')).toHaveClass('json-arrayRowValue')
+      }
+
+      await user.click(tableAction)
+
+      expect(screen.getByRole('region', { name: 'Table view' })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Table navigation path' })).toHaveValue(
+        '["data.key"].rows',
+      )
+      expect(screen.getByRole('columnheader', { name: 'id' })).toBeInTheDocument()
+      expect(screen.getByRole('cell', { name: 'Ada' })).toBeInTheDocument()
+      expect(selectedPaths).toEqual([])
+      expect(screen.getByRole('navigation', { name: 'JSON path' })).toHaveTextContent(
+        'root/data.key',
+      )
+    },
+  )
 
   it('renders only the active pane and maps worker window rows by total count', () => {
     mockVirtualizerState.virtualItems = [
@@ -214,11 +275,11 @@ describe('JsonViewer', () => {
 
     renderWithProviders(<Harness />)
 
-    await user.click(screen.getByRole('button', { name: /data/i }))
+    await user.click(screen.getByRole('button', { name: 'data' }))
     expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /0/i }))
+    await user.click(screen.getByRole('button', { name: '0' }))
     expect(screen.getByRole('group', { name: 'root column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'data column' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Index 0 column' })).toBeInTheDocument()

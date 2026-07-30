@@ -9,6 +9,7 @@ import { Section } from '@astryxdesign/core/Section'
 import { HStack, VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
+import { ArrayTableAction, isArrayViewerRow } from './ArrayTableAction'
 import { VirtualRows } from './VirtualRows'
 import { getViewerRow, type ViewerRowWindow } from './viewerRows'
 
@@ -16,6 +17,7 @@ type TreeViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onOpenArrayInTable(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
@@ -51,7 +53,13 @@ function getValueClassName(valueRole: 'value' | 'metadata' | undefined) {
   return valueRole === 'metadata' ? 'json-viewMeta' : 'json-viewValue'
 }
 
-export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: TreeViewProps) {
+export function TreeView({
+  rows,
+  selectedPath,
+  onSelectPath,
+  onOpenArrayInTable,
+  onWindowChange,
+}: TreeViewProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
   const canFilterRows = rows.startIndex === 0 && rows.rows.length === rows.totalCount
   const visibleRows = useMemo(
@@ -93,16 +101,18 @@ export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: T
               const isCollapsed = collapsedPaths.has(pathKey(row.path))
               const isSelected = isSamePath(selectedPath, row.path)
               const depth = row.depth ?? 0
+              const isArrayRow = isArrayViewerRow(row)
 
               return (
                 <HStack
                   gap={2}
                   align="center"
-                  className="json-selectableRow json-treeRow"
+                  className={`json-selectableRow json-treeRow${isArrayRow ? ' json-arrayRow' : ''}`}
                   aria-selected={isSelected || undefined}
                   data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return
                     if (event.key !== 'Enter' && event.key !== ' ') return
                     event.preventDefault()
                     onSelectPath(row.path)
@@ -144,10 +154,16 @@ export function TreeView({ rows, selectedPath, onSelectPath, onWindowChange }: T
                   <Text
                     type="supporting"
                     maxLines={1}
-                    className={`json-treeValue ${getValueClassName(row.valueRole)}`}
+                    className={`json-treeValue ${getValueClassName(row.valueRole)}${
+                      isArrayRow ? ' json-arrayRowValue' : ''
+                    }`}
                   >
                     {row.value ?? ''}
                   </Text>
+                  <ArrayTableAction
+                    row={row}
+                    onOpenArrayInTable={onOpenArrayInTable}
+                  />
                 </HStack>
               )
             }}

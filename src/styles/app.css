@@ -216,8 +216,77 @@ body,
   background-color: var(--color-accent-muted);
 }
 
-.json-selectableRow {
+.json-selectableRow,
+.json-columnRowItem {
   transition-duration: calc(var(--duration-fast-min) / 2);
+}
+
+.json-arrayRow {
+  box-sizing: border-box;
+  inline-size: 100%;
+  position: relative;
+  background-color: var(--color-background-blue);
+  border-radius: var(--radius-element);
+}
+
+.json-arrayRow:hover,
+.json-arrayRow:focus-within {
+  background-color: var(--color-background-blue);
+}
+
+.json-arrayRow .json-columnRowItem {
+  background-color: transparent;
+}
+
+.json-arrayRowValue {
+  margin-inline-start: auto;
+  text-align: end;
+  transform: translateX(0);
+  transition: transform var(--duration-fast-min) var(--ease-standard);
+}
+
+.json-arrayTableAction {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--spacing-1);
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--spacing-1), -50%);
+  transition:
+    opacity var(--duration-fast-min) var(--ease-standard),
+    transform var(--duration-fast-min) var(--ease-standard);
+}
+
+.json-arrayRow:hover .json-arrayTableAction,
+.json-arrayRow:focus-within .json-arrayTableAction {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%);
+}
+
+.json-arrayRow:hover .json-arrayRowValue,
+.json-arrayRow:focus-within .json-arrayRowValue {
+  transform: translateX(calc(-1 * (var(--size-element-sm) + var(--spacing-1))));
+}
+
+@media (hover: none) {
+  .json-arrayTableAction {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(0, -50%);
+  }
+
+  .json-arrayRowValue {
+    transform: translateX(calc(-1 * (var(--size-element-sm) + var(--spacing-1))));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .json-arrayTableAction,
+  .json-arrayRowValue {
+    transition: none;
+  }
 }
 
 .json-sourceGuides {
@@ -274,6 +343,11 @@ body,
   border: 0;
   border-radius: var(--radius-none);
   background: transparent;
+}
+
+.json-columnRowItem {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .json-columnValue {

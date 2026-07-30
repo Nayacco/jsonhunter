@@ -67,6 +67,55 @@ test('uses consistent key and value typography across data views', async ({ page
   expect(await getTypography(details.locator('.json-viewValue').first())).toEqual(columnsValue)
 })
 
+test('opens array rows from every non-table view with a hover action', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill(
+    JSON.stringify({
+      items: [{ id: 1, name: 'Ada' }],
+      meta: { page: 1 },
+    }),
+  )
+  await page.getByRole('button', { name: /create project/i }).click()
+
+  for (const mode of ['columns', 'tree', 'source'] as const) {
+    await page.getByRole('radio', { name: new RegExp(`^${mode}$`, 'i') }).click()
+
+    const action = page.getByRole('button', {
+      name: 'Open items in Table view',
+      exact: true,
+    })
+    const arrayRow = page.locator('.json-selectableRow').filter({ has: action })
+    const rowBackground = await arrayRow.evaluate((element) => getComputedStyle(element).backgroundColor)
+    const actionTransformBefore = await action.evaluate((element) => getComputedStyle(element).transform)
+    const itemCount = mode === 'source' ? undefined : arrayRow.getByText('[1 items]', { exact: true })
+    const countTransformBefore = itemCount
+      ? await itemCount.evaluate((element) => getComputedStyle(element).transform)
+      : undefined
+
+    expect(rowBackground).not.toBe('rgba(0, 0, 0, 0)')
+    await expect(action).toHaveCSS('opacity', '0')
+    if (itemCount) await expect(itemCount).toHaveCSS('text-align', 'end')
+    await arrayRow.hover()
+    await expect(action).toHaveCSS('opacity', '1')
+    expect(await action.evaluate((element) => getComputedStyle(element).transform)).not.toBe(
+      actionTransformBefore,
+    )
+    if (itemCount) {
+      expect(await itemCount.evaluate((element) => getComputedStyle(element).transform)).not.toBe(
+        countTransformBefore,
+      )
+    }
+    await action.click()
+
+    await expect(page.getByRole('radio', { name: /^table$/i })).toBeChecked()
+    await expect(page.getByRole('textbox', { name: 'Table navigation path' })).toHaveValue('items')
+    await expect(page.getByRole('columnheader', { name: 'id' })).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'JSON path' })).toHaveText('/root')
+  }
+})
+
 test('aligns compact selected backgrounds across columns, tree, and source views', async ({ page }) => {
   await page.goto('/')
 

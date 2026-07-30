@@ -45,10 +45,11 @@ describe('ColumnsView', () => {
           },
         ]}
         onSelectPath={() => {}}
+        onOpenArrayInTable={() => {}}
       />,
     )
 
-    const row = screen.getByRole('button', { name: /data/i })
+    const row = screen.getByRole('button', { name: 'data[1 items]' })
 
     expect(row).toHaveAttribute('data-description', '')
     expect(screen.getByTestId('column-row-end-content')).toHaveTextContent('[1 items]')
@@ -74,6 +75,7 @@ describe('ColumnsView', () => {
           },
         ]}
         onSelectPath={() => {}}
+        onOpenArrayInTable={() => {}}
       />,
     )
 

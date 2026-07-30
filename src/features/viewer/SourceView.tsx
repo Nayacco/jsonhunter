@@ -8,6 +8,7 @@ import { Section } from '@astryxdesign/core/Section'
 import { HStack, VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import type { JsonPath } from '../../domain/jsonTypes'
+import { ArrayTableAction, isArrayViewerRow } from './ArrayTableAction'
 import { VirtualRows } from './VirtualRows'
 import { getViewerRow, type SourceToken, type ViewerRow, type ViewerRowWindow } from './viewerRows'
 
@@ -15,6 +16,7 @@ type SourceViewProps = {
   rows: ViewerRowWindow
   selectedPath: JsonPath
   onSelectPath(path: JsonPath): void
+  onOpenArrayInTable(path: JsonPath): void
   onWindowChange?(window: { startIndex: number; count: number }): void
 }
 
@@ -85,7 +87,13 @@ function SourceLine({ row, isCollapsed }: { row: ViewerRow; isCollapsed: boolean
   return <Text>{tokens.map(renderToken)}</Text>
 }
 
-export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }: SourceViewProps) {
+export function SourceView({
+  rows,
+  selectedPath,
+  onSelectPath,
+  onOpenArrayInTable,
+  onWindowChange,
+}: SourceViewProps) {
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
   const hasCollapsedPaths = collapsedPaths.size > 0
   const canFilterRows = rows.startIndex === 0 && rows.rows.length === rows.totalCount
@@ -147,6 +155,7 @@ export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }:
               const canCollapse =
                 row.hasChildren && (row.source?.kind === 'object-open' || row.source?.kind === 'array-open')
               const collapseLabel = `${isCollapsed ? 'Expand' : 'Collapse'} ${String(row.path.at(-1) ?? 'root')}`
+              const isArrayRow = isArrayViewerRow(row)
 
               return (
                 <HStack
@@ -154,10 +163,11 @@ export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }:
                   align="center"
                   aria-label={row.label.trim()}
                   aria-selected={isSelected || undefined}
-                  className="json-selectableRow json-sourceRow"
+                  className={`json-selectableRow json-sourceRow${isArrayRow ? ' json-arrayRow' : ''}`}
                   data-selected={isSelected ? 'true' : 'false'}
                   onClick={() => onSelectPath(row.path)}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return
                     if (event.key !== 'Enter' && event.key !== ' ') return
                     event.preventDefault()
                     onSelectPath(row.path)
@@ -193,6 +203,10 @@ export function SourceView({ rows, selectedPath, onSelectPath, onWindowChange }:
                       // {row.source.summary.countLabel}
                     </Text>
                   )}
+                  <ArrayTableAction
+                    row={row}
+                    onOpenArrayInTable={onOpenArrayInTable}
+                  />
                 </HStack>
               )
             }}

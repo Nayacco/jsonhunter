@@ -54,6 +54,34 @@ describe('app.css', () => {
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)
   })
 
+  it('styles array rows with a full blue background and animated table affordance', () => {
+    expect(css).toMatch(
+      /\.json-arrayRow\s*\{[^}]*background-color:\s*var\(--color-background-blue\)/s,
+    )
+    expect(css).toMatch(/\.json-arrayRow\s*\{[^}]*position:\s*relative/s)
+    expect(css).toMatch(
+      /\.json-arrayRowValue\s*\{[^}]*margin-inline-start:\s*auto[^}]*text-align:\s*end/s,
+    )
+    expect(css).toMatch(
+      /\.json-arrayRowValue\s*\{[^}]*transition:\s*transform var\(--duration-fast-min\) var\(--ease-standard\)/s,
+    )
+    expect(css).toMatch(
+      /\.json-arrayTableAction\s*\{[^}]*position:\s*absolute[^}]*inset-inline-end:\s*var\(--spacing-1\)[^}]*opacity:\s*0/s,
+    )
+    expect(css).toMatch(
+      /\.json-arrayTableAction\s*\{[^}]*transition:\s*opacity var\(--duration-fast-min\) var\(--ease-standard\),\s*transform var\(--duration-fast-min\) var\(--ease-standard\)/s,
+    )
+    expect(css).toMatch(
+      /\.json-arrayRow:hover \.json-arrayTableAction,\s*\.json-arrayRow:focus-within \.json-arrayTableAction\s*\{[^}]*opacity:\s*1[^}]*transform:\s*translate\(0,\s*-50%\)/s,
+    )
+    expect(css).toMatch(
+      /\.json-arrayRow:hover \.json-arrayRowValue,\s*\.json-arrayRow:focus-within \.json-arrayRowValue\s*\{[^}]*transform:\s*translateX\(calc\(-1 \* \(var\(--size-element-sm\) \+ var\(--spacing-1\)\)\)\)/s,
+    )
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*\.json-arrayTableAction,\s*\.json-arrayRowValue\s*\{[^}]*transition:\s*none/s,
+    )
+  })
+
   it('uses an emphasized token for tree guide lines', () => {
     expect(css).toMatch(/\.json-treeGuides\s*\{[^}]*--json-tree-guide-color:\s*var\(--color-border-emphasized\)/s)
     expect(css).toMatch(/\.json-treeGuides\[data-has-guides='true'\]::after\s*\{[^}]*var\(--json-tree-guide-color\)/s)
