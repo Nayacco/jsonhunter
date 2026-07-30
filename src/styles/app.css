@@ -427,6 +427,15 @@ body,
   animation: pipelineEditor-enter var(--duration-medium-min) var(--ease-standard);
 }
 
+.pipelineEditor-actions,
+.pipelineEditor-actions [role='toolbar'] {
+  width: 100%;
+}
+
+.pipelineEditor-actions [role='toolbar'] > :first-child {
+  margin-inline-start: auto;
+}
+
 .pipelineFlow-toolbar,
 .pipelineFlow-toolbar [role='toolbar'] {
   min-width: 0;

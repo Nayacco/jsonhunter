@@ -154,6 +154,15 @@ describe('app.css', () => {
     )
   })
 
+  it('keeps the node editor actions aligned to the right edge', () => {
+    expect(css).toMatch(
+      /\.pipelineEditor-actions,\s*\.pipelineEditor-actions \[role='toolbar'\]\s*\{[^}]*width:\s*100%/s,
+    )
+    expect(css).toMatch(
+      /\.pipelineEditor-actions \[role='toolbar'\] > :first-child\s*\{[^}]*margin-inline-start:\s*auto/s,
+    )
+  })
+
   it('draws token-based directional connectors between pipeline nodes', () => {
     expect(css).toMatch(
       /\.pipelineFlow-connector::before\s*\{[^}]*border-block-start:\s*var\(--border-width\) solid var\(--color-border-emphasized\)/s,

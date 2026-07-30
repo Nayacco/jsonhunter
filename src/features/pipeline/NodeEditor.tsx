@@ -43,7 +43,7 @@ export function NodeEditor({
           height="calc(var(--spacing-12) * 4)"
           language={language}
           value={value}
-          theme="vs-dark"
+          theme="vs"
           onChange={(next) => onChange(next ?? '')}
           options={{ minimap: { enabled: false }, scrollBeyondLastLine: false }}
         />
@@ -51,6 +51,7 @@ export function NodeEditor({
       <Toolbar
         label="Node editor actions"
         size="sm"
+        className="pipelineEditor-actions"
         endContent={
           <>
             <Button label="Cancel" variant="ghost" onClick={onCancel} />
