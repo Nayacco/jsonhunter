@@ -49,22 +49,43 @@ body,
   pointer-events: none;
 }
 
-.json-viewerTable,
-.json-viewerTable > .astryx-section,
+.json-viewer,
+.json-viewer > .astryx-section,
+.json-fillView,
+.json-fillView > .astryx-section,
+.json-fillViewContent,
 .json-tableView,
 .json-tableView > .astryx-section,
 .json-tableViewContent {
   min-height: 0;
 }
 
-.json-viewerTable {
+.json-viewer {
   height: 100%;
 }
 
-.json-viewerTable > .astryx-section,
+.json-viewer > .astryx-section,
+.json-fillView > .astryx-section,
 .json-tableView > .astryx-section {
   display: flex;
   flex-direction: column;
+}
+
+.json-fillView > .astryx-section {
+  padding-block-end: 0;
+}
+
+.json-viewer > .astryx-section > .json-fillView,
+.json-fillViewContent {
+  flex: 1 1 0;
+}
+
+.json-fillViewContent > .virtualScroll,
+.json-fillViewContent > .json-columnBrowser {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
 }
 
 .json-viewerTable > .astryx-section > .json-tableView,
@@ -335,11 +356,16 @@ body,
 
 .json-columnPanel {
   flex: 0 0 calc(var(--spacing-12) * 6);
+  min-height: 0;
   max-width: calc(var(--spacing-12) * 8);
   border-right: var(--border-width) solid var(--color-border);
 }
 
 .json-columnPanel .virtualScroll {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
   border: 0;
   border-radius: var(--radius-none);
   background: transparent;

@@ -116,6 +116,41 @@ test('opens array rows from every non-table view with a hover action', async ({ 
   }
 })
 
+test('fills the available viewer height in columns, tree, and source views', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill(
+    JSON.stringify({
+      items: [{ id: 1, name: 'Ada' }, { id: 2, name: 'Lin' }],
+      meta: { page: 1 },
+    }),
+  )
+  await page.getByRole('button', { name: /create project/i }).click()
+
+  for (const mode of ['columns', 'tree', 'source'] as const) {
+    await page.getByRole('radio', { name: new RegExp(`^${mode}$`, 'i') }).click()
+
+    const scrollRegion =
+      mode === 'columns'
+        ? page.locator('.json-columnBrowser')
+        : page.getByRole('region', { name: `${mode[0].toUpperCase()}${mode.slice(1)} view` })
+            .locator('.virtualScroll')
+
+    const bottomGap = await page.getByRole('region', { name: 'JSON viewer' }).evaluate(
+      (viewer, selector) => {
+        const scroll = viewer.querySelector<HTMLElement>(selector)
+        if (!scroll) throw new Error(`Expected ${selector} inside the JSON viewer`)
+        return Math.round(viewer.getBoundingClientRect().bottom - scroll.getBoundingClientRect().bottom)
+      },
+      mode === 'columns' ? '.json-columnBrowser' : '.virtualScroll',
+    )
+
+    await expect(scrollRegion).toBeVisible()
+    expect(bottomGap).toBeLessThanOrEqual(24)
+  }
+})
+
 test('aligns compact selected backgrounds across columns, tree, and source views', async ({ page }) => {
   await page.goto('/')
 

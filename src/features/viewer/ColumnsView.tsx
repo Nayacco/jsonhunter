@@ -36,8 +36,8 @@ export function ColumnsView({
   onColumnWindowChange,
 }: ColumnsViewProps) {
   return (
-    <Section>
-      <VStack gap={2} as="section" aria-label="Columns view">
+    <Section className="json-fillView">
+      <VStack gap={2} as="section" aria-label="Columns view" className="json-fillViewContent">
         <HStack gap={2} align="center" justify="between">
           <Heading level={2}>Columns</Heading>
           <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />

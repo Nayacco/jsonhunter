@@ -43,6 +43,22 @@ describe('app.css', () => {
     expect(css).not.toMatch(/\.json-tableScroll\s*\{[^}]*32rem/s)
   })
 
+  it('lets columns, tree, and source fill the available viewer height', () => {
+    expect(css).toMatch(/\.json-viewer\s*\{[^}]*height:\s*100%/s)
+    expect(css).toMatch(
+      /\.json-viewer > \.astryx-section > \.json-fillView,\s*\.json-fillViewContent\s*\{[^}]*flex:\s*1 1 0/s,
+    )
+    expect(css).toMatch(
+      /\.json-fillView > \.astryx-section\s*\{[^}]*padding-block-end:\s*0/s,
+    )
+    expect(css).toMatch(
+      /\.json-fillViewContent > \.virtualScroll,\s*\.json-fillViewContent > \.json-columnBrowser\s*\{[^}]*flex:\s*1 1 0[^}]*min-height:\s*0[^}]*height:\s*auto[^}]*max-height:\s*none/s,
+    )
+    expect(css).toMatch(
+      /\.json-columnPanel \.virtualScroll\s*\{[^}]*flex:\s*1 1 0[^}]*min-height:\s*0[^}]*height:\s*auto[^}]*max-height:\s*none/s,
+    )
+  })
+
   it('gives the table row-number column its own token-based background', () => {
     expect(css).toMatch(
       /\.json-tableScroll \.json-tableRowNumberCell\s*\{[^}]*background:\s*var\(--color-background-gray\)/s,

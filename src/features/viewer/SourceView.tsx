@@ -127,8 +127,8 @@ export function SourceView({
   }
 
   return (
-    <Section>
-      <VStack gap={2} as="section" aria-label="Source view">
+    <Section className="json-fillView">
+      <VStack gap={2} as="section" aria-label="Source view" className="json-fillViewContent">
         <HStack gap={2} align="center" justify="between">
           <Heading level={2}>Source</Heading>
           <Button label="Reset path" size="sm" variant="ghost" onClick={() => onSelectPath([])} />

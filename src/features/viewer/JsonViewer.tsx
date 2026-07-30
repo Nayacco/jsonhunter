@@ -53,7 +53,7 @@ export function JsonViewer({
   }
 
   return (
-    <Section className={mode === 'table' ? 'json-viewerTable' : undefined}>
+    <Section className={`json-viewer${mode === 'table' ? ' json-viewerTable' : ''}`}>
       <Toolbar
         label="JSON viewer toolbar"
         size="sm"
