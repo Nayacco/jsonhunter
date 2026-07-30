@@ -49,6 +49,62 @@ body,
   pointer-events: none;
 }
 
+.json-viewerTable,
+.json-viewerTable > .astryx-section,
+.json-tableView,
+.json-tableView > .astryx-section,
+.json-tableViewContent {
+  min-height: 0;
+}
+
+.json-viewerTable {
+  height: 100%;
+}
+
+.json-viewerTable > .astryx-section,
+.json-tableView > .astryx-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.json-viewerTable > .astryx-section > .json-tableView,
+.json-tableViewContent,
+.json-tableScroll {
+  flex: 1 1 0;
+}
+
+.json-tableScroll {
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+}
+
+.json-tableScroll th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--color-background-muted);
+}
+
+.json-tableScroll td[tabindex='0'] {
+  cursor: pointer;
+}
+
+.json-tableScroll td[tabindex='0']:focus-visible {
+  outline: var(--border-width-emphasized) solid var(--color-border-focused);
+  outline-offset: calc(-1 * var(--border-width-emphasized));
+}
+
+.json-tableScroll tr[aria-hidden='true'],
+.json-tableScroll tr[aria-hidden='true'] td {
+  padding: 0 !important;
+  border: 0 !important;
+  line-height: 0;
+}
+
 .json-viewKey {
   color: var(--color-text-gray);
 }

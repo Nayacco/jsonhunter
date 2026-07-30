@@ -30,6 +30,16 @@ describe('app.css', () => {
     expect(themeCss).toMatch(/--color-data-orange-4:\s*light-dark\(/)
   })
 
+  it('distinguishes the table header and lets the table fill the available viewer height', () => {
+    expect(css).toMatch(
+      /\.json-tableScroll th\s*\{[^}]*background:\s*var\(--color-background-muted\)/s,
+    )
+    expect(css).toMatch(/\.json-tableScroll\s*\{[^}]*flex:\s*1 1 0/s)
+    expect(css).toMatch(/\.json-tableScroll\s*\{[^}]*min-height:\s*0/s)
+    expect(css).not.toMatch(/\.json-tableScroll\s*\{[^}]*52vh/s)
+    expect(css).not.toMatch(/\.json-tableScroll\s*\{[^}]*32rem/s)
+  })
+
   it('limits column row values so keys remain visible', () => {
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*max-width:\s*calc\(var\(--spacing-12\) \* 3\)/s)
     expect(css).toMatch(/\.json-columnValue\s*\{[^}]*text-overflow:\s*ellipsis/s)

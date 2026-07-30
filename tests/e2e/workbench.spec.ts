@@ -1,4 +1,9 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+
+async function navigateTable(page: Page, path: string) {
+  await page.getByRole('textbox', { name: 'Table navigation path' }).fill(path)
+  await page.getByRole('button', { name: 'Navigate table' }).click()
+}
 
 async function getTypography(locator: Locator) {
   return locator.evaluate((element) => {
@@ -47,6 +52,7 @@ test('uses consistent key and value typography across data views', async ({ page
   expect(await getTypography(treeView.getByText('121', { exact: true }))).toEqual(columnsValue)
 
   await page.getByRole('radio', { name: /^table$/i }).click()
+  await navigateTable(page, 'items')
   const tableView = page.getByRole('region', { name: 'Table view' })
   expect(await getTypography(tableView.getByText('id', { exact: true }))).toEqual(columnsKey)
   expect(await getTypography(tableView.getByText('121', { exact: true }))).toEqual(columnsValue)
@@ -162,7 +168,8 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
 
   await page.getByRole('button', { name: /^run$/i }).click()
   await page.getByRole('radio', { name: /^table$/i }).click()
-  await expect(page.getByRole('button', { name: /Ada/ })).toBeVisible()
+  await navigateTable(page, 'items')
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
 
   await page.getByRole('button', { name: /^save$/i }).click()
   await page.getByRole('button', { name: /raw/i }).click()
@@ -232,17 +239,82 @@ test('keeps large pasted json view switching responsive without rendering every 
 
   await page.getByRole('radio', { name: /^table$/i }).click()
   await expect(page.getByRole('heading', { name: 'Table' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^row-0\b/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^row-7\b/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^row-4999\b/ })).toHaveCount(0)
+  await navigateTable(page, 'rows')
+  await expect(page.getByRole('cell', { name: 'row-0', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'row-7', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'row-4999', exact: true })).toHaveCount(0)
 
-  await page.locator('.virtualScroll').evaluate((element) => {
+  await page.locator('.json-tableScroll').evaluate((element) => {
     element.scrollTop = element.scrollHeight
     element.dispatchEvent(new Event('scroll', { bubbles: true }))
   })
 
-  await expect(page.getByRole('button', { name: /^row-4999\b/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^row-0\b/ })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: 'row-4999', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'row-0', exact: true })).toHaveCount(0)
+})
+
+test('navigates table data independently and rejects mixed row shapes', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByLabel(/paste json/i).fill(
+    JSON.stringify({
+      regular: [
+        { id: 1, profile: { active: true } },
+        { id: 2, name: 'Lin' },
+      ],
+      mixed: [1, { id: 2 }],
+      matrix: [[1, 2], [3]],
+    }),
+  )
+  await page.getByRole('button', { name: /create project/i }).click()
+  await page.getByRole('radio', { name: /^table$/i }).click()
+
+  await expect(page.getByText('Table data must be an array')).toBeVisible()
+
+  await navigateTable(page, 'regular')
+  await expect(page.getByRole('columnheader', { name: 'id' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'profile' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'name' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'index' })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: '{"active":true}' })).toBeVisible()
+
+  const tableAppearance = await page.getByRole('region', { name: 'JSON viewer' }).evaluate((viewer) => {
+    const scrollRegion = viewer.querySelector<HTMLElement>('.json-tableScroll')
+    const header = scrollRegion?.querySelector<HTMLElement>('th')
+    if (!scrollRegion || !header) throw new Error('Expected the table scroll region and header')
+
+    const viewerRect = viewer.getBoundingClientRect()
+    const scrollRect = scrollRegion.getBoundingClientRect()
+    return {
+      bottomGap: Math.round(viewerRect.bottom - scrollRect.bottom),
+      height: Math.round(scrollRect.height),
+      headerBackground: getComputedStyle(header).backgroundColor,
+      bodyBackground: getComputedStyle(scrollRegion).backgroundColor,
+    }
+  })
+
+  expect(tableAppearance.bottomGap).toBeLessThanOrEqual(24)
+  expect(tableAppearance.headerBackground).not.toBe(tableAppearance.bodyBackground)
+
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const expandedTableHeight = await page.locator('.json-tableScroll').evaluate((scrollRegion) => {
+    return Math.round(scrollRegion.getBoundingClientRect().height)
+  })
+  expect(expandedTableHeight).toBeGreaterThan(tableAppearance.height + 100)
+
+  await page.getByRole('cell', { name: 'Lin' }).click()
+  await expect(page.getByRole('navigation', { name: 'JSON path' })).toContainText('root/regular/1/name')
+  await expect(page.getByRole('textbox', { name: 'Table navigation path' })).toHaveValue('regular')
+
+  await navigateTable(page, 'mixed')
+  await expect(page.getByText('Table data has mixed item types')).toBeVisible()
+  await expect(page.getByText(/primitive, object/)).toBeVisible()
+  await expect(page.getByRole('table')).toHaveCount(0)
+
+  await navigateTable(page, 'matrix')
+  await expect(page.getByRole('columnheader', { name: '0' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '1' })).toBeVisible()
+  await expect(page.getByRole('row')).toHaveCount(3)
 })
 
 test('drops unsaved draft processing nodes after refresh', async ({ page }) => {

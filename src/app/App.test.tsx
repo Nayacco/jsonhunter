@@ -171,6 +171,12 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /create project/i }))
   }
 
+  async function navigateTableToItems(user: ReturnType<typeof userEvent.setup>) {
+    const input = await screen.findByRole('textbox', { name: 'Table navigation path' })
+    await user.clear(input)
+    await user.type(input, 'items{Enter}')
+  }
+
   it('shows the full landing page without empty workbench regions', async () => {
     renderWithProviders(<App />)
 
@@ -304,7 +310,8 @@ describe('App', () => {
     })
     await createPasteProject(user)
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
-    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: /open another json/i }))
     fireEvent.change(screen.getByLabelText(/paste json/i), {
@@ -324,9 +331,10 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: /create project/i })).toBeNull()
     })
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
+    await navigateTableToItems(user)
 
-    expect(await screen.findByRole('button', { name: /Lin/ })).toBeVisible()
-    expect(screen.queryByRole('button', { name: /Ada/ })).toBeNull()
+    expect(await screen.findByRole('cell', { name: 'Lin' })).toBeVisible()
+    expect(screen.queryByRole('cell', { name: 'Ada' })).toBeNull()
     expect(screen.queryByRole('button', { name: /create project/i })).toBeNull()
   })
 
@@ -369,7 +377,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
-    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
 
     workerRequest.mockImplementationOnce(async (request: any) => ({
       type: 'workerError',
@@ -379,7 +388,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     expect(await screen.findByText('Transform failed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Grace/ })).toBeVisible()
+    expect(screen.getByRole('cell', { name: 'Grace' })).toBeVisible()
   })
 
   it('constructs a worker client for app parse and execution requests', async () => {
@@ -488,7 +497,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /^run$/i }))
 
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
-    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
     expect(screen.getByText('{items}')).toBeInTheDocument()
     expect(
       saveProject.mock.calls.every(([savedProject]) =>
@@ -542,14 +552,17 @@ describe('App', () => {
     await createPasteProject(user)
 
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
-    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: /add js/i }))
     await user.click(screen.getByRole('button', { name: /^run$/i }))
-    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: /^cancel$/i }))
 
-    expect(await screen.findByRole('button', { name: /Ada/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
     expect(screen.queryByRole('button', { name: /js 1/i })).toBeNull()
     expect(
       saveProject.mock.calls.every(([savedProject]) =>
@@ -564,7 +577,8 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /^save$/i })).toBeNull()
     })
-    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
 
     await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
     const editor = await screen.findByTestId('monaco-editor')
@@ -572,11 +586,13 @@ describe('App', () => {
       target: { value: 'export default input => ({ items: [{ id: 1, name: "Hopper" }] })' },
     })
     await user.click(screen.getByRole('button', { name: /^run$/i }))
-    expect(await screen.findByRole('button', { name: /Hopper/ })).toBeVisible()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Hopper' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: /^cancel$/i }))
 
-    expect(await screen.findByRole('button', { name: /Grace/ })).toBeVisible()
-    expect(screen.queryByRole('button', { name: /Hopper/ })).toBeNull()
+    await navigateTableToItems(user)
+    expect(await screen.findByRole('cell', { name: 'Grace' })).toBeVisible()
+    expect(screen.queryByRole('cell', { name: 'Hopper' })).toBeNull()
     expect(
       saveProject.mock.calls
         .map(([savedProject]) => savedProject as ProjectRecord)
@@ -595,7 +611,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /add js/i }))
     await user.click(screen.getByRole('button', { name: /^run$/i }))
     await user.click(screen.getByRole('radio', { name: /^table$/i }))
-    await screen.findByRole('button', { name: /Grace/ })
+    await navigateTableToItems(user)
+    await screen.findByRole('cell', { name: 'Grace' })
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     await waitFor(() => {

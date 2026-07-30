@@ -306,15 +306,6 @@ export function App() {
   }, [displayedSourceNodeId, viewerMode])
 
   useEffect(() => {
-    if (viewerMode !== 'table') return
-
-    setViewerWindows((current) => {
-      if (current.table === undefined) return current
-      return { ...current, table: undefined }
-    })
-  }, [selectedPath, viewerMode])
-
-  useEffect(() => {
     setColumnWindows({})
   }, [displayedSourceNodeId])
 
@@ -348,11 +339,11 @@ export function App() {
   const language = activeNode.type === 'duckdb' ? 'sql' : 'javascript'
   const hasProject = project !== undefined
   const hasLoadedRaw = rawValue !== undefined && project !== undefined
-  const activeViewerPath = viewerMode === 'table' ? selectedPath : ROOT_VIEWER_PATH
+  const activeViewerPath = ROOT_VIEWER_PATH
   const activeViewerWindow = viewerWindows[viewerMode]
   const viewerRows = useMemo(
     () =>
-      displayedValue === undefined || viewerMode === 'columns'
+      displayedValue === undefined || viewerMode === 'columns' || viewerMode === 'table'
         ? undefined
         : deriveViewerRowsForMode(displayedValue, viewerMode, activeViewerPath, activeViewerWindow),
     [activeViewerPath, activeViewerWindow, displayedValue, viewerMode],
@@ -762,6 +753,7 @@ export function App() {
           {displayedValue !== undefined && displayedSourceNodeId === draft.node.id && (
             <JsonViewer
               mode={viewerMode}
+              value={displayedValue}
               selectedPath={selectedPath}
               rows={viewerRows}
               columnView={columnView}
@@ -775,6 +767,7 @@ export function App() {
       ) : (
         <JsonViewer
           mode={viewerMode}
+          value={displayedValue}
           selectedPath={selectedPath}
           rows={viewerRows}
           columnView={columnView}

@@ -1,7 +1,7 @@
 import { Section } from '@astryxdesign/core/Section'
 import { HStack } from '@astryxdesign/core/Stack'
 import { Toolbar } from '@astryxdesign/core/Toolbar'
-import type { JsonPath } from '../../domain/jsonTypes'
+import type { JsonPath, JsonValue } from '../../domain/jsonTypes'
 import type { ViewerMode } from '../../domain/viewTypes'
 import { Breadcrumb } from './Breadcrumb'
 import { ColumnsView } from './ColumnsView'
@@ -13,6 +13,7 @@ import { getViewerRows, type ViewerColumn, type ViewerRowsByMode } from './viewe
 
 type JsonViewerProps = {
   mode: ViewerMode
+  value?: JsonValue
   selectedPath: JsonPath
   rows?: ViewerRowsByMode
   columnView?: ViewerColumn[]
@@ -24,6 +25,7 @@ type JsonViewerProps = {
 
 export function JsonViewer({
   mode,
+  value,
   selectedPath,
   rows,
   columnView,
@@ -43,7 +45,7 @@ export function JsonViewer({
   ]
 
   return (
-    <Section>
+    <Section className={mode === 'table' ? 'json-viewerTable' : undefined}>
       <Toolbar
         label="JSON viewer toolbar"
         size="sm"
@@ -71,9 +73,8 @@ export function JsonViewer({
       )}
       {mode === 'table' && (
         <TableView
-          rows={viewerRows.table}
+          value={value}
           onSelectPath={onSelectPath}
-          onWindowChange={(window) => onWindowChange?.('table', window)}
         />
       )}
       {mode === 'source' && (

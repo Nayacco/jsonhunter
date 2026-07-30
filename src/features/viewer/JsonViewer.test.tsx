@@ -283,32 +283,23 @@ describe('JsonViewer', () => {
     expect(scrollContent).toHaveStyle({ height: '64px' })
   })
 
-  it('renders table identifiers as keys and distinguishes values from metadata', () => {
+  it('renders table headers as keys and cell contents as values', () => {
     renderWithProviders(
       <JsonViewer
         mode="table"
+        value={[{ id: 121, profile: { active: true } }]}
         selectedPath={[]}
-        rows={{
-          table: {
-            startIndex: 0,
-            totalCount: 2,
-            rows: [
-              { label: 'row-0', value: '121', valueRole: 'value', path: [0] },
-              { label: 'row-1', value: '2 fields', valueRole: 'metadata', path: [1] },
-            ],
-          },
-        }}
         onModeChange={() => {}}
         onSelectPath={() => {}}
       />,
     )
 
-    expect(screen.getByText('row-0')).toHaveClass('json-viewKey')
-    expect(screen.getByText('row-0')).toHaveAttribute('data-type', 'label')
+    expect(screen.getByText('id')).toHaveClass('json-viewKey')
+    expect(screen.getByText('id')).toHaveAttribute('data-type', 'label')
+    expect(screen.getByText('profile')).toHaveClass('json-viewKey')
     expect(screen.getByText('121')).toHaveClass('json-viewValue')
     expect(screen.getByText('121')).toHaveAttribute('data-type', 'supporting')
-    expect(screen.getByText('2 fields')).toHaveClass('json-viewMeta')
-    expect(screen.getByText('2 fields')).toHaveAttribute('data-type', 'supporting')
+    expect(screen.getByText('{"active":true}')).toHaveClass('json-viewValue')
   })
 
   it('renders tree rows as key and value columns with collapsible branches', async () => {
@@ -661,18 +652,8 @@ describe('JsonViewer', () => {
     renderWithProviders(
       <JsonViewer
         mode="table"
+        value={Array.from({ length: 5000 }, (_, index) => `Loaded row ${index}`)}
         selectedPath={[]}
-        rows={{
-          table: {
-            startIndex: 0,
-            totalCount: 5000,
-            rows: Array.from({ length: 3 }, (_, index) => ({
-              label: `Loaded row ${index}`,
-              value: `value ${index}`,
-              path: ['table', index],
-            })),
-          },
-        }}
         onModeChange={() => {}}
         onSelectPath={() => {}}
       />,
@@ -681,9 +662,9 @@ describe('JsonViewer', () => {
     expect(screen.getByText('Loaded row 0')).toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'View mode' })).toBeInTheDocument()
     expect(screen.getByText('Loaded row 1')).toBeInTheDocument()
-    expect(screen.getByText('Loaded row 2')).toBeInTheDocument()
-    expect(screen.getByText(/Loading row 4/)).toBeInTheDocument()
-    expect(screen.queryByText(/Loading row 4999/)).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /row/i }).length).toBeLessThan(100)
+    expect(screen.getByText('Loaded row 23')).toBeInTheDocument()
+    expect(screen.queryByText('Loaded row 24')).not.toBeInTheDocument()
+    expect(screen.queryByText('Loaded row 4999')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('row').length).toBeLessThan(30)
   })
 })
