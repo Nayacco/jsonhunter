@@ -86,7 +86,21 @@ body,
   position: sticky;
   inset-block-start: 0;
   z-index: 1;
-  background: var(--color-background-muted);
+  background: var(--color-background-body);
+}
+
+.json-tableScroll .json-tableRowNumberCell {
+  background: var(--color-background-gray);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.json-tableScroll th.json-tableRowNumberCell {
+  background: color-mix(
+    in srgb,
+    var(--color-background-body) 88%,
+    var(--color-text-primary)
+  );
 }
 
 .json-tableScroll td[tabindex='0'] {

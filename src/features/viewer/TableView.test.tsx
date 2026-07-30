@@ -36,8 +36,10 @@ describe('TableView', () => {
     renderWithProviders(<TableView value={[{ id: 1, name: 'Ada' }]} onSelectPath={() => {}} />)
 
     expect(screen.getByRole('textbox', { name: 'Table navigation path' })).toHaveValue('')
+    expect(screen.getByRole('columnheader', { name: 'Row number' })).toHaveTextContent('#')
     expect(screen.getByRole('columnheader', { name: 'id' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'name' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Row 1' })).toHaveTextContent('1')
     expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'Ada' })).toBeInTheDocument()
   })
@@ -146,6 +148,8 @@ describe('TableView', () => {
 
     expect(screen.getByRole('cell', { name: 'row-100' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'row-102' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Row 101' })).toHaveTextContent('101')
+    expect(screen.getByRole('cell', { name: 'Row 103' })).toHaveTextContent('103')
     expect(screen.queryByText('row-0')).not.toBeInTheDocument()
     expect(screen.queryByText('row-4999')).not.toBeInTheDocument()
     expect(screen.getAllByRole('row').length).toBeLessThan(10)

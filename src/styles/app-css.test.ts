@@ -32,12 +32,21 @@ describe('app.css', () => {
 
   it('distinguishes the table header and lets the table fill the available viewer height', () => {
     expect(css).toMatch(
-      /\.json-tableScroll th\s*\{[^}]*background:\s*var\(--color-background-muted\)/s,
+      /\.json-tableScroll th\s*\{[^}]*background:\s*var\(--color-background-body\)/s,
+    )
+    expect(css).toMatch(
+      /\.json-tableScroll th\.json-tableRowNumberCell\s*\{[^}]*background:\s*color-mix\(\s*in srgb,\s*var\(--color-background-body\) 88%,\s*var\(--color-text-primary\)\s*\)/s,
     )
     expect(css).toMatch(/\.json-tableScroll\s*\{[^}]*flex:\s*1 1 0/s)
     expect(css).toMatch(/\.json-tableScroll\s*\{[^}]*min-height:\s*0/s)
     expect(css).not.toMatch(/\.json-tableScroll\s*\{[^}]*52vh/s)
     expect(css).not.toMatch(/\.json-tableScroll\s*\{[^}]*32rem/s)
+  })
+
+  it('gives the table row-number column its own token-based background', () => {
+    expect(css).toMatch(
+      /\.json-tableScroll \.json-tableRowNumberCell\s*\{[^}]*background:\s*var\(--color-background-gray\)/s,
+    )
   })
 
   it('limits column row values so keys remain visible', () => {

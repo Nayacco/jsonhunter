@@ -1,4 +1,10 @@
-import { Table, proportional, type TableColumn, type TablePlugin } from '@astryxdesign/core/Table'
+import {
+  Table,
+  pixel,
+  proportional,
+  type TableColumn,
+  type TablePlugin,
+} from '@astryxdesign/core/Table'
 import { Section } from '@astryxdesign/core/Section'
 import { Text } from '@astryxdesign/core/Text'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -30,9 +36,11 @@ const ROW_HEIGHT = 32
 const VISIBLE_ROW_COUNT = 8
 const OVERSCAN = 8
 const FALLBACK_ROW_LIMIT = VISIBLE_ROW_COUNT + OVERSCAN * 2
+const ROW_NUMBER_COLUMN_KEY_BASE = '__jsonhunter_row_number__'
 
 export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const rowNumberColumnKey = useMemo(() => getRowNumberColumnKey(model), [model])
   const virtualizer = useVirtualizer({
     count: model.rowCount,
     getScrollElement: () => scrollRef.current,
@@ -86,8 +94,27 @@ export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
   }, [bottomSpacerHeight, model, topSpacerHeight, virtualItems])
 
   const columns = useMemo<TableColumn<VirtualTableItem>[]>(
-    () =>
-      model.columns.map((column) => ({
+    () => [
+      {
+        key: rowNumberColumnKey,
+        header: (
+          <Text type="label" maxLines={1} className="json-viewMeta">
+            #
+          </Text>
+        ),
+        width: pixel(48),
+        align: 'end',
+        resizable: false,
+        renderCell(item: VirtualTableItem) {
+          if (item.kind === 'spacer' || item.modelRowIndex === undefined) return null
+          return (
+            <Text type="supporting" maxLines={1} className="json-viewMeta">
+              {item.modelRowIndex + 1}
+            </Text>
+          )
+        },
+      },
+      ...model.columns.map((column) => ({
         key: column.id,
         header: (
           <Text type="label" maxLines={1} className="json-viewKey">
@@ -95,7 +122,7 @@ export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
           </Text>
         ),
         width: proportional(1),
-        renderCell(item) {
+        renderCell(item: VirtualTableItem) {
           if (item.kind === 'spacer' || item.modelRowIndex === undefined) return null
           const cell = model.getCell(item.modelRowIndex, column.id)
           return (
@@ -109,14 +136,26 @@ export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
           )
         },
       })),
-    [model],
+    ],
+    [model, rowNumberColumnKey],
   )
 
   const plugins = useMemo<Record<string, TablePlugin<VirtualTableItem>>>(
     () => ({
       virtualRows: {
-        transformHeaderCell(props) {
-          return props
+        transformHeaderCell(props, column) {
+          if (column.key !== rowNumberColumnKey) return props
+          return {
+            ...props,
+            htmlProps: {
+              ...props.htmlProps,
+              'aria-label': 'Row number',
+              className: appendClassName(
+                props.htmlProps.className,
+                'json-tableRowNumberCell',
+              ),
+            },
+          }
         },
         transformBodyRow(props, item) {
           if (item.kind !== 'spacer') return props
@@ -145,6 +184,20 @@ export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
                   lineHeight: 0,
                   padding: 0,
                 },
+              },
+            }
+          }
+
+          if (column.key === rowNumberColumnKey) {
+            return {
+              ...props,
+              htmlProps: {
+                ...props.htmlProps,
+                'aria-label': `Row ${item.modelRowIndex + 1}`,
+                className: appendClassName(
+                  props.htmlProps.className,
+                  'json-tableRowNumberCell',
+                ),
               },
             }
           }
@@ -188,7 +241,7 @@ export function VirtualTable({ model, onSelectPath }: VirtualTableProps) {
         },
       },
     }),
-    [model, onSelectPath],
+    [model, onSelectPath, rowNumberColumnKey],
   )
 
   return (
@@ -238,4 +291,10 @@ function VirtualTableScrollWrapper({
 
 function appendClassName(current: string | undefined, next: string) {
   return current ? `${current} ${next}` : next
+}
+
+function getRowNumberColumnKey(model: TableModel) {
+  let key = ROW_NUMBER_COLUMN_KEY_BASE
+  while (model.columns.some((column) => column.id === key)) key += '_'
+  return key
 }

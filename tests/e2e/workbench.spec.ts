@@ -272,10 +272,13 @@ test('navigates table data independently and rejects mixed row shapes', async ({
   await expect(page.getByText('Table data must be an array')).toBeVisible()
 
   await navigateTable(page, 'regular')
+  await expect(page.getByRole('columnheader', { name: 'Row number' })).toHaveText('#')
   await expect(page.getByRole('columnheader', { name: 'id' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'profile' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'name' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'index' })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: 'Row 1' })).toHaveText('1')
+  await expect(page.getByRole('cell', { name: 'Row 2' })).toHaveText('2')
   await expect(page.getByRole('cell', { name: '{"active":true}' })).toBeVisible()
 
   const tableAppearance = await page.getByRole('region', { name: 'JSON viewer' }).evaluate((viewer) => {
@@ -290,11 +293,18 @@ test('navigates table data independently and rejects mixed row shapes', async ({
       height: Math.round(scrollRect.height),
       headerBackground: getComputedStyle(header).backgroundColor,
       bodyBackground: getComputedStyle(scrollRegion).backgroundColor,
+      rowNumberBackground: getComputedStyle(
+        scrollRegion.querySelector<HTMLElement>('td.json-tableRowNumberCell')!,
+      ).backgroundColor,
+      dataCellBackground: getComputedStyle(
+        scrollRegion.querySelector<HTMLElement>('td:not(.json-tableRowNumberCell)')!,
+      ).backgroundColor,
     }
   })
 
   expect(tableAppearance.bottomGap).toBeLessThanOrEqual(24)
   expect(tableAppearance.headerBackground).not.toBe(tableAppearance.bodyBackground)
+  expect(tableAppearance.rowNumberBackground).not.toBe(tableAppearance.dataCellBackground)
 
   await page.setViewportSize({ width: 1280, height: 900 })
   const expandedTableHeight = await page.locator('.json-tableScroll').evaluate((scrollRegion) => {
