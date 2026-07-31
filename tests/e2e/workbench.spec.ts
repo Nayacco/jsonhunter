@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { utils, write } from 'xlsx'
 
 async function navigateTable(page: Page, path: string) {
   await page.getByRole('textbox', { name: 'Table navigation path' }).fill(path)
@@ -292,6 +293,34 @@ test('imports a CSV file into the workbench', async ({ page }) => {
   await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '001' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'Grace, Hopper' })).toBeVisible()
+})
+
+test('imports an Excel workbook into the workbench', async ({ page }) => {
+  const workbook = utils.book_new()
+  utils.book_append_sheet(
+    workbook,
+    utils.aoa_to_sheet([
+      ['id', 'name', 'code'],
+      [1, 'Ada', '001'],
+      [2, 'Grace Hopper', '002'],
+    ]),
+    'People',
+  )
+  const contents = write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+  await page.goto('/')
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'people.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: Buffer.from(new Uint8Array(contents)),
+  })
+
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+  await expect(page.getByText('people.xlsx', { exact: true })).toBeVisible()
+  await page.getByRole('radio', { name: /^table$/i }).click()
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '001' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'Grace Hopper' })).toBeVisible()
 })
 
 test('inserts the step editor without replacing the current viewer', async ({ page }) => {

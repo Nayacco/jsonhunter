@@ -123,6 +123,53 @@ function csvToJsonText(text: string): string {
   return JSON.stringify(records)
 }
 
+async function excelToJsonText(file: File): Promise<string> {
+  try {
+    const contents = await file.arrayBuffer()
+    const bytes = new Uint8Array(contents)
+    const hasPrefix = (prefix: readonly number[]) =>
+      prefix.every((byte, index) => bytes[index] === byte)
+    const isZipWorkbook = hasPrefix([0x50, 0x4b])
+    const isCompoundWorkbook = hasPrefix([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+    const isLegacyBiffWorkbook =
+      bytes[0] === 0x09 && [0x00, 0x02, 0x04, 0x08].includes(bytes[1])
+    const fileName = file.name.toLowerCase()
+    const hasExpectedSignature = fileName.endsWith('.xlsx')
+      ? isZipWorkbook || isCompoundWorkbook
+      : fileName.endsWith('.xls')
+        ? isCompoundWorkbook || isLegacyBiffWorkbook
+        : isZipWorkbook || isCompoundWorkbook || isLegacyBiffWorkbook
+
+    if (!hasExpectedSignature) throw new Error('File contents do not match an Excel workbook.')
+
+    const { read, utils } = await import('xlsx')
+    const workbook = read(contents, { dense: true })
+    if (workbook.SheetNames.length === 0) throw new Error('Workbook does not contain any worksheets.')
+
+    const worksheets = Object.fromEntries(
+      workbook.SheetNames.map((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName]
+        if (!worksheet) throw new Error(`Worksheet "${sheetName}" could not be read.`)
+        return [
+          sheetName,
+          utils.sheet_to_json<Record<string, string>>(worksheet, {
+            defval: '',
+            raw: false,
+          }),
+        ]
+      }),
+    )
+
+    const firstSheetName = workbook.SheetNames[0]
+    return JSON.stringify(
+      workbook.SheetNames.length === 1 ? worksheets[firstSheetName] : worksheets,
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Unable to read Excel workbook: ${message}`)
+  }
+}
+
 const dataFileAdapters: readonly DataFileAdapter[] = [
   {
     format: 'json',
@@ -142,15 +189,30 @@ const dataFileAdapters: readonly DataFileAdapter[] = [
       return csvToJsonText(await file.text())
     },
   },
+  {
+    format: 'excel',
+    label: 'Excel',
+    extensions: ['.xlsx', '.xls'],
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ],
+    toJsonText: excelToJsonText,
+  },
 ]
 
 export const DATA_FILE_ACCEPT = dataFileAdapters
   .flatMap((adapter) => [...adapter.extensions, ...adapter.mimeTypes])
   .join(',')
 
-export const DATA_FILE_FORMAT_DESCRIPTION = dataFileAdapters
-  .map((adapter) => adapter.label)
-  .join(' or ')
+function formatAdapterLabels(adapters: readonly DataFileAdapter[]): string {
+  const labels = adapters.map((adapter) => adapter.label)
+  if (labels.length < 2) return labels[0] ?? ''
+  if (labels.length === 2) return labels.join(' or ')
+  return `${labels.slice(0, -1).join(', ')}, or ${labels.at(-1)}`
+}
+
+export const DATA_FILE_FORMAT_DESCRIPTION = formatAdapterLabels(dataFileAdapters)
 
 function findDataFileAdapter(file: File): DataFileAdapter | undefined {
   const fileName = file.name.toLowerCase()

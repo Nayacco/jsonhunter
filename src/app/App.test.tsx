@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { utils, write } from 'xlsx'
 import type { ProjectRecord } from '../domain/projectTypes'
 import { resetWorkbenchStore, useWorkbenchStore } from '../state/useWorkbenchStore'
 import type { WorkerResponse } from '../workers/workerProtocol'
@@ -233,6 +234,50 @@ describe('App', () => {
       type: 'file',
       fileName: 'people.csv',
       format: 'csv',
+    })
+  })
+
+  it('imports an Excel workbook through the canonical JSON worker flow', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    const workbook = utils.book_new()
+    utils.book_append_sheet(
+      workbook,
+      utils.aoa_to_sheet([
+        ['id', 'name'],
+        ['001', 'Ada'],
+        ['002', 'Grace'],
+      ]),
+      'People',
+    )
+    const contents = write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+    const file = new File([contents], 'people.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    Object.defineProperty(file, 'arrayBuffer', { value: async () => contents })
+
+    await screen.findByRole('heading', { name: /open a file/i })
+    const fileInput = document.querySelector('input[type="file"]')
+    expect(fileInput).toBeInstanceOf(HTMLInputElement)
+    await user.upload(fileInput as HTMLInputElement, file)
+
+    await waitFor(() => {
+      expect(workerRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'parseRaw',
+          rawJsonText: JSON.stringify([
+            { id: '001', name: 'Ada' },
+            { id: '002', name: 'Grace' },
+          ]),
+        }),
+      )
+    })
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+    expect(useWorkbenchStore.getState().projects[0]?.rawSource).toMatchObject({
+      type: 'file',
+      fileName: 'people.xlsx',
+      format: 'excel',
     })
   })
 

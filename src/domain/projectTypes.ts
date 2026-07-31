@@ -3,7 +3,7 @@ import type { PipelineNode } from './pipelineTypes'
 import type { ViewerMode } from './viewTypes'
 
 export type RawSourceType = 'file' | 'paste' | 'url'
-export type FileDataFormat = 'json' | 'csv'
+export type FileDataFormat = 'json' | 'csv' | 'excel'
 
 export type RawSource =
   | { type: 'file'; fileName: string; sizeBytes: number; format: FileDataFormat }

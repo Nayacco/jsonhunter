@@ -84,7 +84,8 @@ export function ImportLandingPage(props: ImportLandingPageProps) {
             <Text type="supporting">Inspect · Transform · Understand</Text>
             <Heading level={1}>Make complex data feel navigable.</Heading>
             <Text type="large" color="secondary">
-              Import a JSON or CSV file, load a JSON URL, or paste raw JSON. Every route leads to the same focused workbench.
+              Import a {DATA_FILE_FORMAT_DESCRIPTION} file, load a JSON URL, or paste raw JSON.
+              Every route leads to the same focused workbench.
             </Text>
           </VStack>
 

@@ -25,6 +25,7 @@ describe('ProjectRestorePage', () => {
     const fileInput = document.querySelector('input[type="file"]')
     expect(fileInput).toBeInstanceOf(HTMLInputElement)
     expect(fileInput).toHaveAttribute('accept', expect.stringContaining('.csv'))
+    expect(fileInput).toHaveAttribute('accept', expect.stringContaining('.xlsx'))
 
     await userEvent.setup().upload(fileInput as HTMLInputElement, file)
 

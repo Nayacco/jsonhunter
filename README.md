@@ -1,6 +1,6 @@
 # JSON Hunter
 
-JSON Hunter is a frontend data workbench for importing JSON or CSV files, loading JSON from paste or URL, inspecting pipeline outputs, and previewing or saving local JS/DuckDB processing steps.
+JSON Hunter is a frontend data workbench for importing JSON, CSV, or Excel files, loading JSON from paste or URL, inspecting pipeline outputs, and previewing or saving local JS/DuckDB processing steps.
 
 ## Getting started
 
