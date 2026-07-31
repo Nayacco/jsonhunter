@@ -25,6 +25,11 @@ describe('ImportLandingPage', () => {
     expect(screen.getByRole('heading', { name: /open a file/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /load from url/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /paste json/i })).toBeVisible()
+    expect(screen.getByText(/json or csv files are supported/i)).toBeVisible()
+    expect(document.querySelector('input[type="file"]')).toHaveAttribute(
+      'accept',
+      expect.stringContaining('.csv'),
+    )
   })
 
   it('submits URL, paste, and file inputs unchanged', async () => {
@@ -40,7 +45,7 @@ describe('ImportLandingPage', () => {
     })
     await user.click(screen.getByRole('button', { name: /create project/i }))
 
-    const file = new File(['{"file":true}'], 'data.json', { type: 'application/json' })
+    const file = new File(['id,name\n1,Ada'], 'data.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]')
     expect(fileInput).toBeInstanceOf(HTMLInputElement)
     await user.upload(fileInput as HTMLInputElement, file)

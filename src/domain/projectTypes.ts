@@ -3,9 +3,10 @@ import type { PipelineNode } from './pipelineTypes'
 import type { ViewerMode } from './viewTypes'
 
 export type RawSourceType = 'file' | 'paste' | 'url'
+export type FileDataFormat = 'json' | 'csv'
 
 export type RawSource =
-  | { type: 'file'; fileName: string; sizeBytes: number }
+  | { type: 'file'; fileName: string; sizeBytes: number; format: FileDataFormat }
   | { type: 'paste'; label: string; sizeBytes: number }
   | { type: 'url'; url: string; sizeBytes?: number }
 

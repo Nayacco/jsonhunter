@@ -1,6 +1,6 @@
 # JSON Hunter
 
-JSON Hunter is a frontend JSON workbench for loading raw JSON from paste, file, or URL, inspecting pipeline outputs, and previewing or saving local JS/DuckDB processing steps.
+JSON Hunter is a frontend data workbench for importing JSON or CSV files, loading JSON from paste or URL, inspecting pipeline outputs, and previewing or saving local JS/DuckDB processing steps.
 
 ## Getting started
 
@@ -35,7 +35,7 @@ Then open `http://127.0.0.1:4173` and walk through paste-project creation plus t
 Projects are stored in IndexedDB under the local `jsonhunter` database.
 
 - URL-backed projects persist metadata only and require an explicit reload after refresh.
-- Paste and file projects persist raw JSON only when the UTF-8 payload is 10 MiB or smaller.
+- Paste and file projects persist their normalized JSON only when the UTF-8 payload is 10 MiB or smaller.
 - Pipeline metadata, active node, selected path, and active viewer mode are restored from persistence.
 - Node execution outputs are not persisted yet.
 

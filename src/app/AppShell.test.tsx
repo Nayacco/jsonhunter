@@ -22,7 +22,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('navigation', { name: /json hunter navigation/i })).toHaveTextContent(
       'orders.json',
     )
-    expect(screen.getByRole('button', { name: /open json/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /import data/i })).toHaveAttribute(
       'data-variant',
       'primary',
     )

@@ -239,7 +239,7 @@ test('keeps selection feedback fast across columns, tree, and source views', asy
 test('creates a paste project and restores it after refresh', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /make complex data feel navigable/i })).toBeVisible()
   await expect(page.getByRole('banner', { name: /pipeline/i })).toHaveCount(0)
   await expect(page.getByRole('region', { name: /json viewer/i })).toHaveCount(0)
   await expect(page.getByRole('complementary', { name: /details/i })).toHaveCount(0)
@@ -251,7 +251,7 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
   await expect(page.getByRole('banner', { name: /pipeline/i })).toBeVisible()
   await expect(page.getByRole('region', { name: /json viewer/i })).toBeVisible()
   await expect(page.getByRole('complementary', { name: /details/i })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /make complex json feel navigable/i })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /make complex data feel navigable/i })).toHaveCount(0)
 
   await addStep(page, 'js')
   await expect(page.getByRole('button', { name: /^run$/i })).toBeVisible()
@@ -277,6 +277,23 @@ test('creates a paste project and restores it after refresh', async ({ page }) =
   await expect(page.getByRole('button', { name: /^save$/i })).toHaveCount(0)
 })
 
+test('imports a CSV file into the workbench', async ({ page }) => {
+  await page.goto('/')
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'people.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('id,name,code\r\n1,Ada,001\r\n2,"Grace, Hopper",002'),
+  })
+
+  await expect(page.getByRole('button', { name: /raw/i })).toBeVisible()
+  await expect(page.getByText('people.csv', { exact: true })).toBeVisible()
+  await page.getByRole('radio', { name: /^table$/i }).click()
+  await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '001' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'Grace, Hopper' })).toBeVisible()
+})
+
 test('inserts the step editor without replacing the current viewer', async ({ page }) => {
   await page.goto('/')
 
@@ -295,7 +312,7 @@ test('inserts the step editor without replacing the current viewer', async ({ pa
   await expect(page.getByRole('region', { name: 'JSON viewer' })).toBeVisible()
   await expect(page.getByRole('radio', { name: /^table$/i })).toBeChecked()
   await expect(page.getByRole('cell', { name: 'Ada' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Open JSON' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Import data' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add step' })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Cancel' }).click()
@@ -318,7 +335,7 @@ test('shows a restore prompt after refreshing an oversized pasted project', asyn
 
   await page.reload()
 
-  await expect(page.getByRole('heading', { name: /raw json required/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /source data required/i })).toBeVisible()
   await page.getByLabel(/paste json again/i).fill(oversizedJson)
   await expect(page.getByRole('button', { name: /paste again/i })).toBeVisible()
   await page.getByRole('button', { name: /paste again/i }).click()

@@ -18,7 +18,7 @@ export function ProjectPageShell({ children, height = 'auto', onCancel }: Projec
       topNav={
         <TopNav
           label="JSON Hunter navigation"
-          heading={<TopNavHeading heading="JSON Hunter" subheading="Local JSON workbench" />}
+          heading={<TopNavHeading heading="JSON Hunter" subheading="Local data workbench" />}
           endContent={
             onCancel ? (
               <Button label="Back to current project" variant="ghost" onClick={onCancel} />

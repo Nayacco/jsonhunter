@@ -38,7 +38,7 @@ export function AppShell({
           heading={<TopNavHeading heading="JSON Hunter" subheading={projectName} />}
           endContent={
             <Button
-              label="Open JSON"
+              label="Import data"
               variant="primary"
               icon={<OpenJsonIcon />}
               onClick={onOpenJson}

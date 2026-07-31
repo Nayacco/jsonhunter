@@ -3,7 +3,7 @@ import { formatPath, getAtPath } from '../domain/jsonPath'
 import { summarizeJson, type JsonSummary } from '../domain/jsonSummary'
 import type { JsonPath, JsonValue } from '../domain/jsonTypes'
 import type { PipelineNode, PipelineNodeType, ProcessingNode } from '../domain/pipelineTypes'
-import type { ProjectRecord, RawSource } from '../domain/projectTypes'
+import type { FileDataFormat, ProjectRecord, RawSource } from '../domain/projectTypes'
 import { DetailsPreview } from '../features/details/DetailsPreview'
 import { DeleteNodeDialog } from '../features/pipeline/DeleteNodeDialog'
 import { ErrorBanner } from '../features/pipeline/ErrorBanner'
@@ -13,6 +13,7 @@ import { ImportLandingPage } from '../features/projects/ImportLandingPage'
 import { MemoryRiskDialog } from '../features/projects/MemoryRiskDialog'
 import { ProjectLoadingPage } from '../features/projects/ProjectLoadingPage'
 import { ProjectRestorePage } from '../features/projects/ProjectRestorePage'
+import { importDataFile } from '../importing/dataFileImport'
 import { JsonViewer } from '../features/viewer/JsonViewer'
 import {
   deriveColumnViewFromJson,
@@ -104,11 +105,12 @@ function createPasteSource(rawJsonText: string): RawSource {
   }
 }
 
-function createFileSource(file: File, rawJsonText: string): RawSource {
+function createFileSource(file: File, format: FileDataFormat, rawJsonText: string): RawSource {
   return {
     type: 'file',
     fileName: file.name,
     sizeBytes: file.size || getRawSizeBytes(rawJsonText),
+    format,
   }
 }
 
@@ -756,11 +758,12 @@ export function App() {
 
   async function handleOpenFile(file: File) {
     try {
-      const rawJsonText = await file.text()
+      const importedFile = await importDataFile(file)
+      const source = createFileSource(file, importedFile.format, importedFile.jsonText)
       await createProject(
-        createProjectNameFromSource({ type: 'file', fileName: file.name, sizeBytes: file.size }),
-        createFileSource(file, rawJsonText),
-        rawJsonText,
+        createProjectNameFromSource(source),
+        source,
+        importedFile.jsonText,
       )
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError))
@@ -818,8 +821,12 @@ export function App() {
     if (!activeProject) return
 
     try {
-      const rawJsonText = await file.text()
-      await hydrateExistingProject(activeProject, rawJsonText, createFileSource(file, rawJsonText))
+      const importedFile = await importDataFile(file)
+      await hydrateExistingProject(
+        activeProject,
+        importedFile.jsonText,
+        createFileSource(file, importedFile.format, importedFile.jsonText),
+      )
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError))
     }

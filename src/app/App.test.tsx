@@ -199,18 +199,49 @@ describe('App', () => {
   it('shows the full landing page without empty workbench regions', async () => {
     renderWithProviders(<App />)
 
-    expect(await screen.findByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: /make complex data feel navigable/i })).toBeVisible()
     expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
     expect(screen.queryByRole('region', { name: /json viewer/i })).toBeNull()
     expect(screen.queryByRole('complementary', { name: /details/i })).toBeNull()
+  })
+
+  it('imports a CSV file through the canonical JSON worker flow', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    const csvText = 'id,name,code\r\n1,Ada,001\r\n2,"Grace, Hopper",002'
+    const file = new File([csvText], 'people.csv', { type: 'text/csv' })
+    Object.defineProperty(file, 'text', { value: async () => csvText })
+    await screen.findByRole('heading', { name: /open a file/i })
+    const fileInput = document.querySelector('input[type="file"]')
+    expect(fileInput).toBeInstanceOf(HTMLInputElement)
+    await user.upload(fileInput as HTMLInputElement, file)
+
+    await waitFor(() => {
+      expect(workerRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'parseRaw',
+          rawJsonText: JSON.stringify([
+            { id: '1', name: 'Ada', code: '001' },
+            { id: '2', name: 'Grace, Hopper', code: '002' },
+          ]),
+        }),
+      )
+    })
+    expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
+    expect(useWorkbenchStore.getState().projects[0]?.rawSource).toMatchObject({
+      type: 'file',
+      fileName: 'people.csv',
+      format: 'csv',
+    })
   })
 
   it('returns from the new-project landing page to the unchanged workbench', async () => {
     const user = userEvent.setup()
     await createPasteProject(user)
 
-    await user.click(screen.getByRole('button', { name: /open json/i }))
-    expect(await screen.findByRole('heading', { name: /make complex json feel navigable/i })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: /import data/i }))
+    expect(await screen.findByRole('heading', { name: /make complex data feel navigable/i })).toBeVisible()
     await user.click(screen.getByRole('button', { name: /back to current project/i }))
 
     expect(await screen.findByRole('button', { name: /raw/i })).toBeVisible()
@@ -230,7 +261,7 @@ describe('App', () => {
       return { type: 'viewWindowResult', jobId: request.jobId, rows: [], total: 0 }
     })
 
-    await user.click(screen.getByRole('button', { name: /open json/i }))
+    await user.click(screen.getByRole('button', { name: /import data/i }))
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{broken' },
     })
@@ -272,7 +303,7 @@ describe('App', () => {
 
     renderWithProviders(<App />)
 
-    expect(await screen.findByRole('heading', { name: /raw json required/i })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: /source data required/i })).toBeVisible()
     expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
     expect(screen.queryByRole('region', { name: /json viewer/i })).toBeNull()
     expect(screen.queryByRole('complementary', { name: /details/i })).toBeNull()
@@ -286,7 +317,7 @@ describe('App', () => {
     renderWithProviders(<App />)
 
     expect(await screen.findByText(/restoring project/i)).toBeVisible()
-    expect(screen.queryByRole('heading', { name: /make complex json feel navigable/i })).toBeNull()
+    expect(screen.queryByRole('heading', { name: /make complex data feel navigable/i })).toBeNull()
     expect(screen.queryByRole('banner', { name: /pipeline/i })).toBeNull()
   })
 
@@ -332,7 +363,7 @@ describe('App', () => {
     await navigateTableToItems(user)
     expect(await screen.findByRole('cell', { name: 'Ada' })).toBeVisible()
 
-    await user.click(screen.getByRole('button', { name: /open json/i }))
+    await user.click(screen.getByRole('button', { name: /import data/i }))
     fireEvent.change(screen.getByLabelText(/paste json/i), {
       target: { value: '{"items":[{"id":2,"name":"Lin"}]}' },
     })
@@ -864,7 +895,7 @@ describe('App', () => {
 
     renderWithProviders(<App />)
 
-    expect(await screen.findByRole('heading', { name: /raw json required/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /source data required/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /reload from url/i })).toBeInTheDocument()
   })
 
@@ -912,7 +943,7 @@ describe('App', () => {
         }),
       )
     })
-    expect(screen.queryByRole('heading', { name: /raw json required/i })).toBeNull()
+    expect(screen.queryByRole('heading', { name: /source data required/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /paste again/i })).toBeNull()
 
     await act(async () => {

@@ -9,6 +9,10 @@ import { HStack, VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
+import {
+  DATA_FILE_ACCEPT,
+  DATA_FILE_FORMAT_DESCRIPTION,
+} from '../../importing/dataFileImport'
 import { ProjectPageShell } from './ProjectPageShell'
 
 export type ImportMethod = 'file' | 'url' | 'paste'
@@ -78,9 +82,9 @@ export function ImportLandingPage(props: ImportLandingPageProps) {
         <VStack gap={8} hAlign="center" className="importLanding-hero">
           <VStack gap={2} hAlign="center" maxWidth={720} className="importLanding-intro">
             <Text type="supporting">Inspect · Transform · Understand</Text>
-            <Heading level={1}>Make complex JSON feel navigable.</Heading>
+            <Heading level={1}>Make complex data feel navigable.</Heading>
             <Text type="large" color="secondary">
-              Open a file, load a URL, or paste raw JSON. Every route leads to the same focused workbench.
+              Import a JSON or CSV file, load a JSON URL, or paste raw JSON. Every route leads to the same focused workbench.
             </Text>
           </VStack>
 
@@ -95,12 +99,15 @@ export function ImportLandingPage(props: ImportLandingPageProps) {
               <VStack gap={4} height="100%">
                 <VStack gap={1}>
                   <Heading level={2}>Open a file</Heading>
-                  <Text type="supporting">Drop a JSON document here or browse from your device.</Text>
+                  <Text type="supporting">
+                    Drop a {DATA_FILE_FORMAT_DESCRIPTION} file here or browse from your device.
+                  </Text>
                 </VStack>
                 <FileInput
-                  label="Open file"
+                  label="Open data file"
                   value={file}
-                  accept="application/json,.json"
+                  accept={DATA_FILE_ACCEPT}
+                  description={`${DATA_FILE_FORMAT_DESCRIPTION} files are supported.`}
                   mode="dropzone"
                   isDisabled={isBusy}
                   isLoading={pendingMethod === 'file'}
@@ -211,7 +218,7 @@ export function ImportLandingPage(props: ImportLandingPageProps) {
       <Section variant="transparent" padding={6} dividers={['top']}>
         <HStack hAlign="between" vAlign="center">
           <Text type="supporting">JSON Hunter</Text>
-          <Text type="supporting">Local JSON workbench</Text>
+          <Text type="supporting">Local data workbench</Text>
         </HStack>
       </Section>
     </ProjectPageShell>

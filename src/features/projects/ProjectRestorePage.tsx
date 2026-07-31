@@ -8,6 +8,10 @@ import { Section } from '@astryxdesign/core/Section'
 import { VStack } from '@astryxdesign/core/Stack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
+import {
+  DATA_FILE_ACCEPT,
+  DATA_FILE_FORMAT_DESCRIPTION,
+} from '../../importing/dataFileImport'
 import { ProjectPageShell } from './ProjectPageShell'
 
 type ProjectRestorePageProps = {
@@ -53,7 +57,7 @@ export function ProjectRestorePage({
       <Section variant="muted" padding={10} minHeight={600}>
         <VStack gap={6} hAlign="center">
           <VStack gap={2} hAlign="center" maxWidth={640} className="importLanding-intro">
-            <Heading level={1}>Raw JSON required</Heading>
+            <Heading level={1}>Source data required</Heading>
             <Text color="secondary">
               Restore the original source to continue this project's pipeline and viewer state.
             </Text>
@@ -77,7 +81,8 @@ export function ProjectRestorePage({
                 <FileInput
                   label="Reselect file"
                   value={file}
-                  accept="application/json,.json"
+                  accept={DATA_FILE_ACCEPT}
+                  description={`Choose the original ${DATA_FILE_FORMAT_DESCRIPTION} file.`}
                   mode="dropzone"
                   isLoading={isPending}
                   status={error ? { type: 'error', message: error } : undefined}

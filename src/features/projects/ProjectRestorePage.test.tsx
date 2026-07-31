@@ -21,9 +21,10 @@ describe('ProjectRestorePage', () => {
   it('reselects a stored file', async () => {
     const onReselectFile = vi.fn(async () => {})
     renderWithProviders(<ProjectRestorePage sourceLabel="data.json" onReselectFile={onReselectFile} />)
-    const file = new File(['{"ok":true}'], 'data.json', { type: 'application/json' })
+    const file = new File(['id,name\n1,Ada'], 'data.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]')
     expect(fileInput).toBeInstanceOf(HTMLInputElement)
+    expect(fileInput).toHaveAttribute('accept', expect.stringContaining('.csv'))
 
     await userEvent.setup().upload(fileInput as HTMLInputElement, file)
 

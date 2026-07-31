@@ -31,7 +31,7 @@ function makeProject(overrides: Partial<ProjectRecord> = {}): ProjectRecord {
     name: 'Test Project',
     createdAt: 0,
     updatedAt: 0,
-    rawSource: { type: 'file', fileName: 'test.json', sizeBytes: 2 },
+    rawSource: { type: 'file', fileName: 'test.json', sizeBytes: 2, format: 'json' },
     rawJsonText: '{"value": "sample"}',
     pipeline: [{ id: 'raw', type: 'raw', label: 'Raw' }],
     activeNodeId: 'raw',
@@ -60,13 +60,13 @@ describe('projectRepository raw persistence rules', () => {
   })
 
   it('persists file and paste raw text at or under 10 MiB', () => {
-    expect(shouldPersistRawText({ type: 'file', fileName: 'small.json', sizeBytes: 2 }, '{}')).toBe(true)
+    expect(shouldPersistRawText({ type: 'file', fileName: 'small.json', sizeBytes: 2, format: 'json' }, '{}')).toBe(true)
     expect(shouldPersistRawText({ type: 'paste', label: 'Pasted JSON', sizeBytes: 2 }, '{}')).toBe(true)
   })
 
   it('does not persist file and paste raw text over 10 MiB', () => {
     const oversized = 'x'.repeat(10 * 1024 * 1024 + 1)
-    expect(shouldPersistRawText({ type: 'file', fileName: 'large.json', sizeBytes: oversized.length }, oversized)).toBe(false)
+    expect(shouldPersistRawText({ type: 'file', fileName: 'large.json', sizeBytes: oversized.length, format: 'json' }, oversized)).toBe(false)
   })
 
   it('uses UTF-8 bytes rather than string length', () => {
@@ -79,7 +79,7 @@ describe('ProjectRepository.saveProject', () => {
     const oversizedText = 'x'.repeat(RAW_PERSISTENCE_LIMIT_BYTES + 1)
     const sanitizedProject = sanitizeProjectForPersistence(
       makeProject({
-        rawSource: { type: 'file', fileName: 'large.json', sizeBytes: oversizedText.length },
+        rawSource: { type: 'file', fileName: 'large.json', sizeBytes: oversizedText.length, format: 'json' },
         rawJsonText: oversizedText,
       }),
     )
@@ -105,7 +105,7 @@ describe('ProjectRepository.saveProject', () => {
     const repo = new ProjectRepository(TEST_DB_NAME)
     const fileProject = makeProject({
       id: 'file-small',
-      rawSource: { type: 'file', fileName: 'small.json', sizeBytes: 2 },
+      rawSource: { type: 'file', fileName: 'small.json', sizeBytes: 2, format: 'json' },
       rawJsonText: '{"value":"small file"}',
     })
     const pasteProject = makeProject({
@@ -128,7 +128,7 @@ describe('ProjectRepository.saveProject', () => {
     const repo = new ProjectRepository(TEST_DB_NAME)
     const oversizedText = 'x'.repeat(RAW_PERSISTENCE_LIMIT_BYTES + 1)
     const project = makeProject({
-      rawSource: { type: 'file', fileName: 'large.json', sizeBytes: oversizedText.length },
+      rawSource: { type: 'file', fileName: 'large.json', sizeBytes: oversizedText.length, format: 'json' },
       rawJsonText: oversizedText,
     })
 
