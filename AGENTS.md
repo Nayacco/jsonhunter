@@ -2,6 +2,11 @@
 
 Project-specific guidance for AI coding agents.
 
+## Skill policy
+
+- Use the `grill-me` skill for this project.
+- Do not use any `superpowers` skills.
+
 <!-- ASTRYX:START -->
 Astryx v0.1.4 · 149 components
 CLI: run every command as `npx astryx <cmd>` (shown below as `astryx ...`).
